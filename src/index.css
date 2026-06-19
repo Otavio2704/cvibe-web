@@ -1,0 +1,149 @@
+@import "tailwindcss";
+
+/* [ANTI-AI] Ruído de textura — profundidade de película, sem nova cor */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  opacity: 0.022;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* [ANTI-AI] Glows assimétricos — superior esquerdo + inferior direito */
+.heroBackground {
+  background: 
+    radial-gradient(ellipse 700px 500px at 8% 12%, rgba(79, 70, 229, 0.12) 0%, transparent 65%),
+    radial-gradient(ellipse 600px 450px at 92% 88%, rgba(139, 92, 246, 0.1) 0%, transparent 60%),
+    #ffffff;
+}
+
+/* [ANTI-AI] Shimmer sobre cor existente do CTA — sem cor nova */
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
+.ctaShimmer {
+  background-image: linear-gradient(
+    90deg, 
+    rgba(79, 70, 229, 1) 0%, 
+    rgba(99, 102, 241, 1) 25%, 
+    rgba(124, 58, 237, 1) 50%, 
+    rgba(99, 102, 241, 1) 75%, 
+    rgba(79, 70, 229, 1) 100%
+  );
+  background-size: 200% auto;
+  animation: shimmer 4s linear infinite;
+  transition: all 0.3s ease;
+}
+
+.ctaShimmer:hover {
+  box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.4);
+  transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ctaShimmer { 
+    animation: none; 
+  }
+}
+
+/* [ANTI-AI] Scanlines no terminal — profundidade de CRT */
+.terminalCrt {
+  position: relative;
+}
+
+.terminalCrt::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.025) 0px,
+    rgba(0, 0, 0, 0.025) 1px,
+    transparent 1px,
+    transparent 2.5px
+  );
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* [ANTI-AI] Cursor real de terminal — step-end é obrigatório */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+.cursorTerminal {
+  display: inline-block;
+  width: 7px;
+  height: 15px;
+  background-color: #4f46e5;
+  margin-left: 2px;
+  animation: blink 1s step-end infinite;
+}
+
+/* [ANTI-AI] Divisória editorial — linha com label, não hr genérico */
+.editorialDivider {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin: 6.5rem 0 4.5rem 0;
+}
+
+.editorialDivider::before,
+.editorialDivider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(79, 70, 229, 0.15), transparent);
+}
+
+.editorialDividerLabel {
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: #6366f1;
+  white-space: nowrap;
+  opacity: 0.85;
+}
+
+/* [ANTI-AI] Card com gradiente nas bordas - assimetria de radius */
+.gradientBorderCard-8 {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(#ffffff, #ffffff) padding-box,
+    linear-gradient(135deg, rgba(79, 70, 229, 0.45), rgba(139, 92, 246, 0.15), rgba(79, 70, 229, 0.45)) border-box;
+  border-radius: 8px;
+}
+
+.gradientBorderCard-12 {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(#ffffff, #ffffff) padding-box,
+    linear-gradient(135deg, rgba(79, 70, 229, 0.15), rgba(139, 92, 246, 0.45), rgba(79, 70, 229, 0.15)) border-box;
+  border-radius: 12px;
+}
+
+.gradientBorderCard-16 {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(#ffffff, #ffffff) padding-box,
+    linear-gradient(135deg, rgba(139, 92, 246, 0.45), rgba(79, 70, 229, 0.45), rgba(139, 92, 246, 0.15)) border-box;
+  border-radius: 20px; /* Varied to break uniformity */
+}
+
+/* Custom typewriter animation */
+@keyframes type {
+  from { width: 0 }
+  to { width: 100% }
+}
+
+/* Base style resets */
+html {
+  scroll-behavior: smooth;
+}
