@@ -122,11 +122,19 @@ export default function Dashboard() {
         <div className="bg-white rounded-2xl p-5 border border-indigo-50 bg-indigo-50/10 shadow-sm">
           <span className="text-xs font-semibold text-indigo-700 uppercase block flex items-center gap-1">
             <Sparkles className="w-3 h-3 text-indigo-600" />
-            Taxa de Aderência Média
+            Relatórios desta Sessão
           </span>
           <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-3xl font-black text-emerald-600">95%</span>
-            <span className="text-xs text-emerald-700 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded">Alta Relevância</span>
+            {reportsList.length === 0 ? (
+              <span className="text-sm text-gray-400 font-medium">Nenhum relatório ainda</span>
+            ) : (
+              <>
+                <span className="text-3xl font-black text-indigo-600">{reportsList.length}</span>
+                <span className="text-xs text-indigo-700 font-semibold bg-indigo-50 px-1.5 py-0.5 rounded">
+                  {reportsList.length === 1 ? 'vaga otimizada' : 'vagas otimizadas'}
+                </span>
+              </>
+            )}
           </div>
         </div>
       </div>

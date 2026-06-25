@@ -1,427 +1,216 @@
-// Centralized API communication for Gupify Web
-// Uses VITE_API_BASE_URL and credentials: 'include' as required by the docs.
-// Includes an automatic fallback to local simulation if the backend is offline/unreachable.
+import { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { useSession } from '../context/SessionContext';
+import { 
+  LayoutDashboard, 
+  Sparkles, 
+  BookOpen, 
+  CheckSquare, 
+  Menu, 
+  X, 
+  RefreshCw,
+  ArrowRight
+} from 'lucide-react';
 
-const API_BASE_URL = (import.meta as any).env.VITE_API_BASE_URL || 'https://gupify.onrender.com';
+export default function Navbar() {
+  const { isMockMode, endSession } = useSession();
+  const location = useLocation();
+  const [isOpen, setIsOpen] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
-// State to track whether we are currently falling back to mock mode
-let useMock = false;
-let onMockStateChange: ((val: boolean) => void) | null = null;
-
-export const setMockStateListener = (callback: (val: boolean) => void) => {
-  onMockStateChange = callback;
-};
-
-export const isUsingMock = () => useMock;
-
-// Simple helper to trigger mock mode state change
-const triggerMockMode = () => {
-  if (!useMock) {
-    useMock = true;
-    console.warn(`[Gupify API] Conexão com ${API_BASE_URL} falhou. Ativando Modo Simulador Local (localStorage) para fins de demonstração.`);
-    if (onMockStateChange) onMockStateChange(true);
-  }
-};
-
-// Interceptor for fetch that falls back to Mock logic if server is offline
-const apiFetch = async (path: string, options: RequestInit = {}) => {
-  try {
-    const response = await fetch(`${API_BASE_URL}${path}`, {
-      ...options,
-      credentials: 'include',
-      headers: { 
-        'Content-Type': 'application/json', 
-        ...options.headers 
-      }
-    });
-    
-    // If we succeeded, ensure mock mode is false
-    if (useMock) {
-      useMock = false;
-      if (onMockStateChange) onMockStateChange(false);
-    }
-    
-    return response;
-  } catch (error) {
-    triggerMockMode();
-    throw error;
-  }
-};
-
-// --- SIMULATION DATABASE (localStorage) ---
-const getLocalData = (key: string, defaultValue: any) => {
-  const data = localStorage.getItem(key);
-  return data ? JSON.parse(data) : defaultValue;
-};
-
-const setLocalData = (key: string, data: any) => {
-  localStorage.setItem(key, JSON.stringify(data));
-};
-
-// Initialize default mock data if empty
-const initMockDB = () => {
-  if (!localStorage.getItem('gupify_mock_cvs')) {
-    setLocalData('gupify_mock_cvs', [
-      { 
-        id: 'cv-1', 
-        name: 'Curriculo_Frontend_React.pdf', 
-        content: 'Desenvolvedor Frontend com 3 anos de experiência em React, Tailwind CSS e TypeScript. Experiência em desenvolvimento de dashboards interativos e otimização de performance.',
-        uploadedAt: new Date(Date.now() - 3600000 * 24 * 3).toISOString() 
-      },
-      { 
-        id: 'cv-2', 
-        name: 'Curriculo_Fullstack_Pleno.docx', 
-        content: 'Desenvolvedor Full Stack especializado em Node.js, Express, PostgreSQL e React. Habilidade em criar APIs seguras, integração de microsserviços e liderança técnica de projetos ágeis.',
-        uploadedAt: new Date(Date.now() - 3600000 * 24 * 1).toISOString() 
-      }
-    ]);
-  }
-
-  if (!localStorage.getItem('gupify_mock_reports')) {
-    setLocalData('gupify_mock_reports', [
-      {
-        id: 'rep-1',
-        cvId: 'cv-1',
-        cvName: 'Curriculo_Frontend_React.pdf',
-        jobTitle: 'Desenvolvedor React Pleno',
-        jobContent: 'Procuramos pessoa desenvolvedora React com forte conhecimento em Tailwind CSS e criação de interfaces responsivas. Diferencial: conhecimento de Next.js e TypeScript.',
-        summary: 'Como Desenvolvedor Frontend especialista em React e Tailwind CSS, desenvolvi e implementei interfaces web responsivas e de alta fidelidade visual. Tenho sólida experiência no ecossistema moderno do React, integrando APIs RESTful eficientemente e otimizando a performance de aplicações SPA. Criei soluções que reduziram o tempo de carregamento em 30% e liderei a migração de sistemas legados. Meu foco é entregar códigos limpos, escaláveis e com ótima experiência do usuário.',
-        keywords: ['React', 'Tailwind CSS', 'Performance'],
-        createdAt: new Date(Date.now() - 3600000 * 5).toISOString(),
-        versions: [
-          {
-            version: 1,
-            summary: 'Como Desenvolvedor Frontend especialista em React e Tailwind CSS, desenvolvi e implementei interfaces web responsivas e de alta fidelidade visual. Tenho sólida experiência no ecossistema moderno do React, integrando APIs RESTful eficientemente e otimizando a performance de aplicações SPA. Criei soluções que reduziram o tempo de carregamento em 30% e liderei a migração de sistemas legados. Meu foco é entregar códigos limpos, escaláveis e com ótima experiência do usuário.',
-            createdAt: new Date(Date.now() - 3600000 * 5).toISOString()
-          }
-        ]
-      }
-    ]);
-  }
-};
-
-initMockDB();
-
-// Simulated AI generation engine to generate summaries and perform checklist logic
-const simulateAIGeneration = (cvText: string, jobTitle: string, jobContent: string) => {
-  const sampleKeywords = ['React', 'TypeScript', 'Node.js', 'Tailwind CSS', 'Git', 'API REST', 'Scrum', 'Figma', 'AWS', 'Docker', 'PostgreSQL', 'SQL'];
-  
-  const words = (jobTitle + ' ' + jobContent).toLowerCase().replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, '').split(/\s+/);
-  
-  const matchedKeywords = sampleKeywords.filter(kw => 
-    words.includes(kw.toLowerCase()) || 
-    jobTitle.toLowerCase().includes(kw.toLowerCase()) ||
-    jobContent.toLowerCase().includes(kw.toLowerCase())
-  );
-  
-  while (matchedKeywords.length < 3) {
-    const defaultKws = ['Metodologias Ágeis', 'Resolução de Problemas', 'Arquitetura de Softwares', 'Boas Práticas'];
-    const nextKw = defaultKws.find(k => !matchedKeywords.includes(k));
-    matchedKeywords.push(nextKw || 'Clean Code');
-  }
-  
-  const selectedKeywords = matchedKeywords.slice(0, 3);
-
-  let candidateName = "Profissional Técnico";
-  if (cvText.toLowerCase().includes("desenvolvedor")) {
-    candidateName = "Desenvolvedor";
-  }
-
-  const summaryTemplates = [
-    `Como ${candidateName} especializado em ${jobTitle}, desenvolvi e criei soluções robustas focadas em alto desempenho e escalabilidade. Com ampla experiência prática na utilização de ${selectedKeywords.join(', ')} e tecnologias correlatas, liderei a arquitetura e implementação de novos módulos de sistemas altamente dinâmicos. Minha trajetória inclui a otimização de processos de entrega contínua e a colaboração ativa em equipes multidisciplinares sob metodologias ágeis. Implementei rotinas automatizadas que aumentaram a cobertura de testes e garantiram a qualidade do código entregue. Estou totalmente preparado para aplicar minhas habilidades técnicas e analíticas para agregar valor imediato aos desafios de engenharia e negócios da equipe, superando as metas de entrega com foco em eficiência.`,
-    
-    `Com sólida experiência na área de tecnologia e atuação direta como ${candidateName}, atuei na linha de frente na implementação de sistemas modernos focados na experiência do usuário e eficiência de dados. Utilizando intensamente ferramentas como ${selectedKeywords.join(' e ')}, estruturei novos fluxos de trabalho e criei componentes reutilizáveis que aceleraram o tempo de desenvolvimento interno em mais de 25%. Desenvolvi integrações complexas de APIs e atuei ativamente na resolução de gargalos de performance técnica. Meu trabalho é pautado pela escrita de código limpo, documentação precisa e colaboração contínua. Busco integrar a equipe trazendo sólida proficiência técnica e capacidade de traduzir requisitos complexos de negócios em soluções tecnológicas robustas e sustentáveis.`,
-    
-    `Atuando há anos no setor como ${candidateName}, especializei-me na criação de soluções escaláveis e arquitetura moderna de software. Tenho ampla experiência no desenvolvimento ponta a ponta com foco em ${selectedKeywords.join(', ')}. Desenvolvi interfaces altamente responsivas e implementei APIs seguras e rápidas que garantiram excelente performance operacional. Liderei iniciativas de refatoração que simplificaram a manutenção do código e reduziram custos de infraestrutura. Trabalho com foco em metodologias ágeis, garantindo entregas frequentes e alinhadas com as expectativas do cliente. Estou entusiasmado para trazer este histórico de inovação prática, domínio técnico e orientação a resultados para impulsionar os novos projetos da empresa.`
+  const navItems = [
+    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    { name: 'Otimizar Currículo', path: '/generate', icon: Sparkles },
+    { name: 'Guia da Gupy', path: '/guia', icon: BookOpen },
+    { name: 'Checklist Interativo', path: '/checklist', icon: CheckSquare },
   ];
 
-  const templateIndex = jobTitle.length % summaryTemplates.length;
-  const summary = summaryTemplates[templateIndex];
-
-  return {
-    summary,
-    keywords: selectedKeywords
+  const handleResetSession = async () => {
+    if (confirm("Tem certeza que deseja encerrar a sessão atual? Isso limpará seus currículos e relatórios temporários do simulador e gerará uma nova sessão.")) {
+      setResetting(true);
+      await endSession();
+      setResetting(false);
+      window.location.href = '/';
+    }
   };
-};
 
-// --- EXPORTED API CALLS ---
+  const isActive = (path: string) => {
+    if (path === '/') return location.pathname === '/';
+    return location.pathname.startsWith(path);
+  };
 
-export const session = {
-  init: async () => {
-    try {
-      const res = await apiFetch('/api/session', { method: 'POST' });
-      return await res.json();
-    } catch (err) {
-      triggerMockMode();
-      return { success: true, message: "Session initialized (Simulated)", sessionId: "mock-sess-xyz" };
-    }
-  },
-  
-  check: async () => {
-    try {
-      const res = await apiFetch('/api/session');
-      return await res.json();
-    } catch (err) {
-      triggerMockMode();
-      return { valid: true, sessionId: "mock-sess-xyz" };
-    }
-  },
-  
-  destroy: async () => {
-    try {
-      const res = await apiFetch('/api/session', { method: 'DELETE' });
-      return await res.json();
-    } catch (err) {
-      triggerMockMode();
-      return { success: true, message: "Session destroyed (Simulated)" };
-    }
+  // [ANTI-AI] Barra de cima preenchida de forma elegante e minimalista na Landing Page (/)
+  // Evita poluição de abas internas antes do login, mantendo o visual equilibrado.
+  if (location.pathname === '/') {
+    return (
+      <nav className="bg-white/95 border-b border-gray-100 sticky top-0 z-50 backdrop-blur-md">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex items-center space-x-3">
+              {/* Logo */}
+              <Link to="/" className="flex items-center space-x-2 flex-shrink-0">
+                <div className="w-9 h-9 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-md shadow-indigo-200">
+                  G
+                </div>
+                <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 to-indigo-800 bg-clip-text text-transparent">
+                  Gupify<span className="text-gray-400 font-normal text-sm ml-0.5">Web</span>
+                </span>
+              </Link>
+
+              {/* Status Badge */}
+              <span className="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-indigo-50 text-indigo-700 border border-indigo-100/50">
+                Otimizador ATS · Gratuito
+              </span>
+            </div>
+
+            {/* Direct CTA to the workspace */}
+            <div className="flex items-center">
+              <Link
+                to="/dashboard"
+                className="inline-flex items-center gap-1.5 px-4.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] uppercase tracking-wider font-extrabold rounded-xl shadow-sm transition-all hover:shadow-indigo-100 active:scale-95"
+              >
+                <span>Acessar Painel</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </nav>
+    );
   }
-};
 
-export const cv = {
-  upload: async (formData: FormData) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/cv/upload`, {
-        method: 'POST',
-        credentials: 'include',
-        body: formData
-      });
-      if (!res.ok) throw new Error('Upload failed');
-      return await res.json();
-    } catch (err) {
-      triggerMockMode();
-      const file = formData.get('file') as File | null;
-      const fileName = file ? file.name : 'Curriculo_Enviado.pdf';
-      const fileContent = `Conteúdo simulado extraído do arquivo enviado (${fileName}). Candidato experiente com foco em desenvolvimento web, APIs, testes automatizados e tecnologias modernas de nuvem.`;
-      
-      const newCv = {
-        id: 'cv-' + Math.random().toString(36).substring(2, 9),
-        name: fileName,
-        content: fileContent,
-        uploadedAt: new Date().toISOString()
-      };
-      
-      const cvs = getLocalData('gupify_mock_cvs', []);
-      cvs.push(newCv);
-      setLocalData('gupify_mock_cvs', cvs);
-      
-      await new Promise(resolve => setTimeout(resolve, 1200));
-      return newCv;
-    }
-  },
-  
-  list: async () => {
-    try {
-      const res = await apiFetch('/api/cv');
-      return await res.json();
-    } catch (err) {
-      triggerMockMode();
-      return getLocalData('gupify_mock_cvs', []);
-    }
-  },
-  
-  remove: async (id: string) => {
-    try {
-      const res = await apiFetch(`/api/cv/${id}`, { method: 'DELETE' });
-      return await res.json();
-    } catch (err) {
-      triggerMockMode();
-      let cvs = getLocalData('gupify_mock_cvs', []);
-      cvs = cvs.filter((item: any) => item.id !== id);
-      setLocalData('gupify_mock_cvs', cvs);
-      return { success: true, message: "CV removed" };
-    }
-  }
-};
+  return (
+    <nav className="bg-white border-b border-gray-100 sticky top-0 z-50 animate-fade-in">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16">
+          <div className="flex items-center">
+            {/* [ANTI-AI] A logo redireciona para o painel de controle (/dashboard) nas páginas internas, evitando retornar à tela de apresentação */}
+            <Link to="/dashboard" className="flex items-center space-x-2 flex-shrink-0" title="Voltar ao Painel">
+              <div className="w-9 h-9 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-md shadow-indigo-200">
+                G
+              </div>
+              <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 to-indigo-800 bg-clip-text text-transparent">
+                Gupify<span className="text-gray-400 font-normal text-sm ml-0.5">Web</span>
+              </span>
+            </Link>
 
-export const generate = {
-  run: async (body: { cvId: string; jobTitle: string; jobContent: string }) => {
-    try {
-      const res = await apiFetch('/api/generate', {
-        method: 'POST',
-        body: JSON.stringify(body)
-      });
-      return await res.json();
-    } catch (err) {
-      triggerMockMode();
-      
-      const cvs = getLocalData('gupify_mock_cvs', []);
-      const selectedCv = cvs.find((c: any) => c.id === body.cvId) || (cvs.length > 0 ? cvs[0] : { content: "Currículo vazio" });
-      
-      const aiResult = simulateAIGeneration(selectedCv.content, body.jobTitle, body.jobContent);
-      
-      await new Promise(resolve => setTimeout(resolve, 1800));
-      
-      return {
-        success: true,
-        summary: aiResult.summary,
-        keywords: aiResult.keywords,
-        cvId: body.cvId,
-        cvName: selectedCv.name,
-        jobTitle: body.jobTitle,
-        jobContent: body.jobContent
-      };
-    }
-  }
-};
+            {/* Desktop Navigation Links */}
+            <div className="hidden md:flex ml-10 space-x-1">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const active = isActive(item.path);
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`flex items-center space-x-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      active
+                        ? 'bg-indigo-50 text-indigo-700'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
+                  >
+                    <Icon className={`w-4 h-4 ${active ? 'text-indigo-600' : 'text-gray-400'}`} />
+                    <span>{item.name}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
 
-export const reports = {
-  list: async () => {
-    try {
-      const res = await apiFetch('/api/reports');
-      return await res.json();
-    } catch (err) {
-      triggerMockMode();
-      return getLocalData('gupify_mock_reports', []);
-    }
-  },
-  
-  get: async (id: string) => {
-    try {
-      const res = await apiFetch(`/api/reports/${id}`);
-      return await res.json();
-    } catch (err) {
-      triggerMockMode();
-      const reportsList = getLocalData('gupify_mock_reports', []);
-      const report = reportsList.find((r: any) => r.id === id);
-      if (!report) {
-        throw new Error('Report not found');
-      }
-      return report;
-    }
-  },
-  
-  update: async (id: string, body: { summary: string }) => {
-    try {
-      const res = await apiFetch(`/api/reports/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(body)
-      });
-      return await res.json();
-    } catch (err) {
-      triggerMockMode();
-      const reportsList = getLocalData('gupify_mock_reports', []);
-      const index = reportsList.findIndex((r: any) => r.id === id);
-      if (index === -1) {
-        throw new Error('Report not found');
-      }
-      
-      const existingReport = reportsList[index];
-      const updatedSummary = body.summary;
-      const hasSummaryChanged = updatedSummary && updatedSummary !== existingReport.summary;
-      
-      const updatedReport = {
-        ...existingReport,
-        ...body,
-        versions: hasSummaryChanged ? [
-          ...(existingReport.versions || []),
-          {
-            version: (existingReport.versions?.length || 0) + 1,
-            summary: updatedSummary,
-            createdAt: new Date().toISOString()
-          }
-        ] : (existingReport.versions || [
-          {
-            version: 1,
-            summary: existingReport.summary,
-            createdAt: existingReport.createdAt || new Date().toISOString()
-          }
-        ])
-      };
-      
-      reportsList[index] = updatedReport;
-      setLocalData('gupify_mock_reports', reportsList);
-      return updatedReport;
-    }
-  },
-  
-  create: async (body: { cvId: string; cvName?: string; jobTitle: string; jobContent: string; summary: string; keywords?: string[] }) => {
-    try {
-      const res = await apiFetch('/api/reports', {
-        method: 'POST',
-        body: JSON.stringify(body)
-      });
-      return await res.json();
-    } catch (err) {
-      triggerMockMode();
-      const reportsList = getLocalData('gupify_mock_reports', []);
-      
-      const newReport = {
-        id: 'rep-' + Math.random().toString(36).substring(2, 9),
-        cvId: body.cvId,
-        cvName: body.cvName || 'Currículo Selecionado',
-        jobTitle: body.jobTitle,
-        jobContent: body.jobContent,
-        summary: body.summary,
-        keywords: body.keywords || [],
-        createdAt: new Date().toISOString(),
-        versions: [
-          {
-            version: 1,
-            summary: body.summary,
-            createdAt: new Date().toISOString()
-          }
-        ]
-      };
-      
-      reportsList.push(newReport);
-      setLocalData('gupify_mock_reports', reportsList);
-      return newReport;
-    }
-  },
-  
-  regenerate: async (id: string) => {
-    try {
-      const res = await apiFetch(`/api/reports/${id}/regenerate`, { method: 'POST' });
-      return await res.json();
-    } catch (err) {
-      triggerMockMode();
-      const reportsList = getLocalData('gupify_mock_reports', []);
-      const index = reportsList.findIndex((r: any) => r.id === id);
-      if (index === -1) {
-        throw new Error('Report not found');
-      }
-      
-      const report = reportsList[index];
-      const cvs = getLocalData('gupify_mock_cvs', []);
-      const selectedCv = cvs.find((c: any) => c.id === report.cvId) || { content: "Currículo de suporte para regeneração" };
-      
-      const aiResult = simulateAIGeneration(selectedCv.content, report.jobTitle, report.jobContent);
-      const newSummary = `[Regerado em ${new Date().toLocaleTimeString()}] ` + aiResult.summary.substring(0, 1300);
-      
-      const updatedReport = {
-        ...report,
-        summary: newSummary,
-        keywords: aiResult.keywords,
-        versions: [
-          ...(report.versions || []),
-          {
-            version: (report.versions?.length || 0) + 1,
-            summary: newSummary,
-            createdAt: new Date().toISOString()
-          }
-        ]
-      };
-      
-      reportsList[index] = updatedReport;
-      setLocalData('gupify_mock_reports', reportsList);
-      
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      return updatedReport;
-    }
-  },
-  
-  remove: async (id: string) => {
-    try {
-      const res = await apiFetch(`/api/reports/${id}`, { method: 'DELETE' });
-      return await res.json();
-    } catch (err) {
-      triggerMockMode();
-      let reportsList = getLocalData('gupify_mock_reports', []);
-      reportsList = reportsList.filter((r: any) => r.id !== id);
-      setLocalData('gupify_mock_reports', reportsList);
-      return { success: true, message: "Report removed" };
-    }
-  }
-};
+          {/* Right section with Session Status & Controls */}
+          <div className="hidden md:flex items-center space-x-4">
+            {/* API Status Badge */}
+            <div className="flex items-center">
+              {isMockMode ? (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/50" title="A API remota está offline ou inacessível. O Gupify Web está utilizando um simulador completo no navegador.">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5 animate-pulse"></span>
+                  Simulador Local Ativo
+                </span>
+              ) : (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/50" title="Conexão direta ativa com o gupify-api">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
+                  API Conectada
+                </span>
+              )}
+            </div>
+
+            <button
+              onClick={handleResetSession}
+              disabled={resetting}
+              className="text-xs font-medium text-gray-500 hover:text-red-600 flex items-center space-x-1 py-1 px-2 rounded-md border border-gray-200 hover:border-red-200 bg-white transition-all shadow-sm"
+              title="Apaga a sessão atual e inicia uma nova"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${resetting ? 'animate-spin' : ''}`} />
+              <span>Resetar Sessão</span>
+            </button>
+          </div>
+
+          {/* Mobile menu button */}
+          <div className="flex items-center md:hidden">
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none"
+            >
+              {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Menu */}
+      {isOpen && (
+        <div className="md:hidden bg-white border-b border-gray-100 px-2 pt-2 pb-4 space-y-1 shadow-inner animate-fade-in">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.path);
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                onClick={() => setIsOpen(false)}
+                className={`flex items-center space-x-2.5 px-3 py-2 rounded-md text-base font-medium transition-colors ${
+                  active
+                    ? 'bg-indigo-50 text-indigo-700'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                }`}
+              >
+                <Icon className={`w-5 h-5 ${active ? 'text-indigo-600' : 'text-gray-400'}`} />
+                <span>{item.name}</span>
+              </Link>
+            );
+          })}
+
+          <div className="pt-4 pb-2 border-t border-gray-100 mt-3 px-3 flex flex-col gap-3">
+            {/* Status for mobile */}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-500">Status da API:</span>
+              {isMockMode ? (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/50">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5 animate-pulse"></span>
+                  Simulador Local Ativo
+                </span>
+              ) : (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/50">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
+                  API Conectada
+                </span>
+              )}
+            </div>
+
+            <button
+              onClick={() => {
+                setIsOpen(false);
+                handleResetSession();
+              }}
+              disabled={resetting}
+              className="w-full text-center text-sm text-red-600 bg-red-50 hover:bg-red-100 py-2 px-3 rounded-md font-medium transition-all flex items-center justify-center space-x-2"
+            >
+              <RefreshCw className={`w-4 h-4 ${resetting ? 'animate-spin' : ''}`} />
+              <span>Resetar Sessão Atual</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </nav>
+  );
+}

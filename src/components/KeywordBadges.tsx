@@ -30,7 +30,7 @@ export default function KeywordBadges({ keywords = [] }: KeywordBadgesProps) {
     }
   };
 
-  const displayKeywords = keywords.length > 0 ? keywords.slice(0, 3) : ['React', 'Tailwind CSS', 'TypeScript'];
+  const displayKeywords = keywords.slice(0, 3);
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
@@ -71,6 +71,11 @@ export default function KeywordBadges({ keywords = [] }: KeywordBadgesProps) {
 
       {/* Grid of keywords */}
       <div className="flex flex-wrap gap-2 mb-4">
+        {displayKeywords.length === 0 && (
+          <p className="text-xs text-gray-400 italic py-1">
+            Nenhuma palavra-chave extraída ainda.
+          </p>
+        )}
         {displayKeywords.map((keyword, idx) => {
           const isSingleCopied = copiedIndex === idx;
           return (

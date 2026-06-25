@@ -1,313 +1,393 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { generate as generateApi, reports as reportsApi } from '../services/api';
 import CvUploader from '../components/CvUploader';
 import SummaryResult from '../components/SummaryResult';
 import KeywordBadges from '../components/KeywordBadges';
 import QualityChecklist from '../components/QualityChecklist';
-import { 
-  Sparkles, 
-  Briefcase, 
-  Wand2, 
-  Save, 
+import ScoreRing from '../components/ScoreRing';
+import {
+  Sparkles,
+  Briefcase,
   AlertCircle,
   Loader2,
   CheckCircle,
-  Brain
+  Save,
+  RotateCcw,
 } from 'lucide-react';
+
+/* Reutiliza a mesma lógica de score do QualityChecklist */
+const CLICHES     = ['proativo','dedicado','fora da caixa','perfeccionista','apaixonado','motivado'];
+const ACTION_VERBS = ['desenvolvi','implementei','criei','liderei','otimizei','gerenciei','estruturei','coordenei','construí'];
+
+function computeScore(summary: string, jobContent: string): number {
+  if (!summary || summary.length < 10) return 0;
+  const norm = (t: string) =>
+    t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ');
+  const ns = norm(summary);
+  const nj = norm(jobContent);
+  let score = 0;
+
+  if (summary.length >= 800 && summary.length <= 1400) score += 25;
+  else if (summary.length >= 500) score += 12;
+
+  if (ACTION_VERBS.some((v) => ns.includes(norm(v)))) score += 25;
+  if (!CLICHES.some((c) => ns.includes(norm(c)))) score += 25;
+
+  if (jobContent.length > 10) {
+    const sw   = new Set(ns.split(/\s+/).filter((w) => w.length > 3));
+    const hits = nj.split(/\s+/).filter((w) => w.length > 3 && sw.has(w)).length;
+    if (hits >= 5) score += 25;
+    else if (hits >= 2) score += 15;
+  } else {
+    score += 10;
+  }
+
+  return Math.min(score, 100);
+}
+
+const GENERATION_STEPS = [
+  'Extraindo perfil técnico do currículo...',
+  'Mapeando palavras-chave de maior peso da vaga...',
+  'Calculando similaridade semântica (cosseno)...',
+  'Formatando no padrão exato da Gupy...',
+  'Validando score ATS e qualidade do texto...',
+];
 
 export default function Generate() {
   const navigate = useNavigate();
-  
-  // Input states
-  const [selectedCv, setSelectedCv] = useState<any | null>(null);
-  const [jobTitle, setJobTitle] = useState('');
-  const [jobContent, setJobContent] = useState('');
-  
-  // UI States
-  const [generating, setGenerating] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  
-  // Result states
-  const [generatedResult, setGeneratedResult] = useState<any | null>(null);
-  const [editedSummary, setEditedSummary] = useState('');
 
-  // Handle generation action
+  // Inputs
+  const [selectedCv,  setSelectedCv]  = useState<any | null>(null);
+  const [jobTitle,    setJobTitle]    = useState('');
+  const [jobContent,  setJobContent]  = useState('');
+
+  // UI
+  const [generating, setGenerating] = useState(false);
+  const [genStepIdx, setGenStepIdx] = useState(0);
+  const [saving,     setSaving]     = useState(false);
+  const [error,      setError]      = useState<string | null>(null);
+  const [success,    setSuccess]    = useState(false);
+
+  // Results
+  const [generatedResult, setGeneratedResult] = useState<any | null>(null);
+  const [editedSummary,   setEditedSummary]   = useState('');
+
+  const liveScore = useMemo(
+    () => computeScore(editedSummary, jobContent),
+    [editedSummary, jobContent],
+  );
+
+  /* ── Generate ─────────────────────────────────────────────────────────── */
+
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!selectedCv) {
-      setError("Por favor, selecione ou envie um currículo antes de prosseguir.");
+      setError('Selecione ou envie um currículo antes de continuar.');
       return;
     }
     if (!jobTitle.trim()) {
-      setError("Por favor, insira o título da vaga.");
+      setError('Informe o título da vaga.');
       return;
     }
     if (!jobContent.trim() || jobContent.trim().length < 50) {
-      setError("Por favor, insira os detalhes/descrição da vaga (mínimo de 50 caracteres para uma boa extração).");
+      setError('Cole a descrição completa da vaga (mínimo de 50 caracteres).');
       return;
     }
 
     try {
       setGenerating(true);
+      setGenStepIdx(0);
       setError(null);
       setGeneratedResult(null);
-      
+
+      // Anima os steps enquanto a API responde
+      let step = 0;
+      const stepInterval = setInterval(() => {
+        step++;
+        if (step < GENERATION_STEPS.length) setGenStepIdx(step);
+        else clearInterval(stepInterval);
+      }, 700);
+
       const response = await generateApi.run({
-        cvId: selectedCv.id,
-        jobTitle: jobTitle.trim(),
-        jobContent: jobContent.trim()
+        cvId:       selectedCv.id,
+        jobTitle:   jobTitle.trim(),
+        jobContent: jobContent.trim(),
       });
 
-      if (response && response.summary) {
+      clearInterval(stepInterval);
+      setGenStepIdx(GENERATION_STEPS.length); // todos concluídos
+
+      if (response?.summary) {
         setGeneratedResult(response);
         setEditedSummary(response.summary);
       } else {
-        throw new Error("Resposta inválida da geração");
+        throw new Error('Resposta inválida da geração.');
       }
-    } catch (err) {
-      console.error("Error generating summary:", err);
-      setError("Ocorreu um erro ao gerar o resumo. Verifique sua conexão e tente novamente.");
+    } catch {
+      setError('Erro ao gerar o resumo. Verifique sua conexão e tente novamente.');
     } finally {
       setGenerating(false);
     }
   };
 
-  // Handle saving the report
-  const handleSaveReport = async () => {
-    if (!generatedResult) return;
+  /* ── Save ─────────────────────────────────────────────────────────────── */
 
+  const handleSave = async () => {
+    if (!generatedResult) return;
     try {
       setSaving(true);
       setError(null);
 
-      const savedReport = await reportsApi.create({
-        cvId: generatedResult.cvId,
-        cvName: generatedResult.cvName || selectedCv.name,
-        jobTitle: jobTitle.trim(),
+      const saved = await reportsApi.create({
+        cvId:       generatedResult.cvId,
+        cvName:     generatedResult.cvName || selectedCv?.name,
+        jobTitle:   jobTitle.trim(),
         jobContent: jobContent.trim(),
-        summary: editedSummary, // Use the potentially edited summary
-        keywords: generatedResult.keywords
+        summary:    editedSummary,
+        keywords:   generatedResult.keywords,
+        score:      liveScore,
       });
 
       setSuccess(true);
-      setTimeout(() => {
-        navigate(`/reports/${savedReport.id}`);
-      }, 1000);
-    } catch (err) {
-      console.error("Error saving report:", err);
-      setError("Ocorreu um erro ao salvar o relatório. Tente novamente.");
+      setTimeout(() => navigate(`/reports/${saved.id}`), 900);
+    } catch {
+      setError('Erro ao salvar o relatório. Tente novamente.');
     } finally {
       setSaving(false);
     }
   };
 
+  /* ── Loading overlay ──────────────────────────────────────────────────── */
+
+  if (generating) {
+    return (
+      <div className="max-w-lg mx-auto px-6 py-20 flex flex-col items-center animate-fade-in">
+        <div className="mb-8">
+          <ScoreRing
+            score={Math.round((genStepIdx / GENERATION_STEPS.length) * 100)}
+            size={96}
+            stroke={7}
+          />
+        </div>
+
+        <h2 className="text-lg font-black text-slate-900 mb-1">Analisando sua candidatura</h2>
+        <p className="text-sm text-slate-500 mb-8 text-center">
+          A IA está mapeando palavras-chave de alto impacto para o algoritmo da Gupy.
+        </p>
+
+        <div className="w-full space-y-2">
+          {GENERATION_STEPS.map((s, i) => {
+            const done    = i < genStepIdx;
+            const current = i === genStepIdx;
+            return (
+              <div
+                key={i}
+                className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg text-xs font-medium border transition-all ${
+                  done
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                    : current
+                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                    : 'bg-slate-50 text-slate-400 border-slate-100'
+                }`}
+              >
+                <span
+                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                    done ? 'bg-emerald-500' : current ? 'bg-indigo-500 pulse-dot' : 'bg-slate-300'
+                  }`}
+                />
+                {s}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Results ──────────────────────────────────────────────────────────── */
+
+  if (generatedResult && !generating) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 animate-fade-in">
+
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-6">
+          <button
+            onClick={() => { setGeneratedResult(null); setEditedSummary(''); }}
+            className="text-slate-400 hover:text-slate-700 transition-colors p-1"
+            title="Voltar ao formulário"
+          >
+            ‹
+          </button>
+          <div className="flex-1">
+            <h1 className="text-xl font-black text-slate-900 tracking-tight">Resumo gerado</h1>
+            <p className="text-xs text-slate-500">Edite, confira o score e salve o relatório.</p>
+          </div>
+          <ScoreRing score={liveScore} size={64} stroke={6} />
+        </div>
+
+        {/* Success */}
+        {success && (
+          <div className="mb-5 flex items-center gap-2.5 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-700">
+            <CheckCircle className="w-4 h-4 shrink-0" />
+            Relatório salvo! Redirecionando...
+          </div>
+        )}
+
+        {error && (
+          <div className="mb-5 flex items-start gap-2.5 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            {error}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+          {/* Left: editor + keywords + checklist */}
+          <div className="lg:col-span-2 space-y-4">
+            <SummaryResult
+              summary={editedSummary}
+              onChange={setEditedSummary}
+              readOnly={false}
+            />
+            <KeywordBadges keywords={generatedResult.keywords} />
+            <QualityChecklist summary={editedSummary} jobContent={jobContent} />
+          </div>
+
+          {/* Right: actions */}
+          <div className="space-y-4">
+            <div className="card bg-white border border-slate-100 rounded-xl p-4">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">
+                Ações
+              </p>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="btn-primary w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white"
+                >
+                  {saving ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4" />
+                  )}
+                  Salvar relatório
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm('Refazer a geração? As edições manuais serão perdidas.')) {
+                      setGeneratedResult(null);
+                      setEditedSummary('');
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  Gerar novo
+                </button>
+              </div>
+
+              <p className="text-[10px] text-slate-400 mt-4 leading-relaxed">
+                Após salvar, você pode editar, regenerar com IA e exportar em PDF na tela do relatório.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Form ─────────────────────────────────────────────────────────────── */
+
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
-      
-      {/* Title & Subtitle */}
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 animate-fade-in">
+
       <div className="mb-8">
-        <h1 className="text-2xl sm:text-3xl font-black text-gray-900 flex items-center gap-2">
-          <Sparkles className="w-7 h-7 text-indigo-600" />
-          Otimizar Currículo para Vaga
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Forneça seu currículo de base e a descrição da vaga desejada. Nossa inteligência ajustará seu resumo para atingir score máximo no algoritmo da Gupy.
+        <h1 className="text-2xl font-black text-slate-900 tracking-tight">Otimizar currículo</h1>
+        <p className="text-sm text-slate-500 mt-0.5">
+          Informe o currículo e a vaga desejada. A IA ajusta seu resumo para score máximo no algoritmo da Gupy.
         </p>
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-2xl text-sm flex items-start gap-3 animate-fade-in">
-          <AlertCircle className="w-5 h-5 mt-0.5 shrink-0" />
-          <span>{error}</span>
+        <div className="mb-6 flex items-start gap-2.5 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          {error}
         </div>
       )}
 
-      {success && (
-        <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-2xl text-sm flex items-start gap-3 animate-fade-in">
-          <CheckCircle className="w-5 h-5 mt-0.5 shrink-0" />
-          <span>Relatório salvo com sucesso! Redirecionando para a página de detalhes...</span>
-        </div>
-      )}
+      <form onSubmit={handleGenerate} className="space-y-5">
 
-      <form onSubmit={handleGenerate} className="space-y-6">
-        
-        {/* Step 1: CV Selection (Uses CvUploader) */}
-        <CvUploader 
-          selectedCvId={selectedCv ? selectedCv.id : null} 
-          onSelectCv={setSelectedCv} 
+        {/* Step 1: CV */}
+        <CvUploader
+          selectedCvId={selectedCv?.id ?? null}
+          onSelectCv={setSelectedCv}
         />
 
-        {/* Step 2: Job details */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-4">
-            <Briefcase className="w-5 h-5 text-indigo-600" />
-            2. Insira os Dados da Vaga Alvo
+        {/* Step 2: Job */}
+        <div className="card bg-white border border-slate-100 rounded-xl p-5">
+          <h2 className="flex items-center gap-2 text-[13px] font-bold text-slate-900 mb-4">
+            <Briefcase className="w-4 h-4 text-indigo-500" />
+            2 · Dados da vaga
           </h2>
 
-          <div className="space-y-4">
-            {/* Job Title Input */}
+          <div className="space-y-3">
             <div>
-              <label htmlFor="job-title" className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-                Título da Vaga
+              <label
+                htmlFor="job-title"
+                className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5"
+              >
+                Título do cargo
               </label>
-              <div className="relative rounded-xl border border-gray-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 transition-all">
-                <input
-                  type="text"
-                  id="job-title"
-                  value={jobTitle}
-                  onChange={(e) => setJobTitle(e.target.value)}
-                  placeholder="Ex: Desenvolvedor Front-end React Pleno"
-                  className="w-full bg-transparent px-3 py-2.5 text-sm text-gray-800 outline-none"
-                  required
-                />
-              </div>
+              <input
+                type="text"
+                id="job-title"
+                value={jobTitle}
+                onChange={(e) => setJobTitle(e.target.value)}
+                placeholder="Ex: Desenvolvedor React Pleno"
+                className="w-full px-3 py-2.5 text-sm text-slate-800 bg-slate-50 border border-slate-200 rounded-lg focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100 transition-all placeholder:text-slate-300"
+                required
+              />
             </div>
 
-            {/* Job Content Textarea */}
             <div>
-              <label htmlFor="job-content" className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-                Requisitos e Descrição da Vaga (Cole o texto completo)
+              <label
+                htmlFor="job-content"
+                className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5"
+              >
+                Descrição e requisitos (cole o texto completo)
               </label>
-              <div className="relative rounded-xl border border-gray-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 transition-all">
-                <textarea
-                  id="job-content"
-                  value={jobContent}
-                  onChange={(e) => setJobContent(e.target.value)}
-                  placeholder="Cole aqui os requisitos técnicos, diferenciais, atribuições e descrição da vaga fornecidos no anúncio da Gupy..."
-                  rows={6}
-                  className="w-full bg-transparent p-3 text-sm text-gray-800 outline-none resize-y leading-relaxed"
-                  required
-                />
-              </div>
-              <p className="text-[10px] text-gray-400 mt-1.5 leading-relaxed">
-                Dica: Quanto mais completa a descrição colada, melhor a IA conseguirá capturar as palavras-chave necessárias e estruturar o resumo profissional ideal.
+              <textarea
+                id="job-content"
+                value={jobContent}
+                onChange={(e) => setJobContent(e.target.value)}
+                placeholder="Cole aqui os requisitos técnicos, atribuições e descrição completa da vaga anunciada na Gupy..."
+                rows={6}
+                className="w-full px-3 py-2.5 text-sm text-slate-800 bg-slate-50 border border-slate-200 rounded-lg focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100 transition-all resize-none placeholder:text-slate-300 leading-relaxed"
+                required
+              />
+              <p className="text-[10px] text-slate-400 mt-1">
+                Quanto mais completo, mais precisa é a extração de palavras-chave.
               </p>
             </div>
           </div>
         </div>
 
-        {/* Generate Trigger Button */}
-        {!generatedResult && (
-          <button
-            type="submit"
-            disabled={generating}
-            className="w-full py-4 px-6 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-85 text-white font-bold rounded-xl shadow-md shadow-indigo-100 flex items-center justify-center gap-2 transition-all active:scale-[0.99]"
-          >
-            {generating ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                <span>Analisando currículo e mapeando requisitos da vaga...</span>
-              </>
-            ) : (
-              <>
-                <Wand2 className="w-5 h-5" />
-                <span>Otimizar Resumo Profissional com IA</span>
-              </>
-            )}
-          </button>
-        )}
+        {/* CTA */}
+        <button
+          type="submit"
+          disabled={generating}
+          className="btn-primary w-full py-3.5 rounded-xl text-sm font-black text-white flex items-center justify-center gap-2"
+        >
+          <Sparkles className="w-4 h-4" />
+          Otimizar com IA
+        </button>
       </form>
-
-      {/* Loading overlay/thinking steps when generating */}
-      {generating && (
-        <div className="mt-8 p-6 bg-indigo-50/40 border border-indigo-100 rounded-2xl text-center space-y-4 animate-pulse">
-          <Brain className="w-10 h-10 text-indigo-600 mx-auto animate-bounce" />
-          <h3 className="text-sm font-bold text-indigo-950">Engrenagem Inteligente Gupify</h3>
-          <div className="max-w-xs mx-auto space-y-2 text-xs text-gray-500">
-            <div className="flex items-center justify-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
-              <span>Extraindo perfil técnico do seu currículo...</span>
-            </div>
-            <div className="flex items-center justify-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
-              <span>Analisando palavras-chave de maior peso da vaga...</span>
-            </div>
-            <div className="flex items-center justify-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
-              <span>Formatando resumo no padrão exato da Gupy...</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* GENERATED RESULTS */}
-      {generatedResult && !generating && (
-        <div className="mt-8 space-y-6 animate-fade-in">
-          
-          <div className="p-4 bg-emerald-50 border border-emerald-200/50 rounded-2xl flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2.5">
-              <span className="p-2 bg-emerald-100 text-emerald-700 rounded-xl">
-                <CheckCircle className="w-5 h-5" />
-              </span>
-              <div>
-                <h3 className="text-sm font-bold text-emerald-950">Resumo Gerado com Sucesso!</h3>
-                <p className="text-xs text-emerald-700">Analise os resultados abaixo antes de salvar o seu relatório.</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Real-time editable summary result */}
-          <SummaryResult 
-            summary={editedSummary} 
-            onChange={setEditedSummary} 
-            readOnly={false}
-          />
-
-          {/* Top 3 extracted keywords */}
-          <KeywordBadges keywords={generatedResult.keywords} />
-
-          {/* Automatic 4-point quality checks (updates dynamically as summary changes!) */}
-          <QualityChecklist 
-            summary={editedSummary} 
-            jobContent={jobContent} 
-          />
-
-          {/* Save Action Bar */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h3 className="text-sm font-bold text-gray-900">Gostou do resultado?</h3>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Salve o relatório no seu histórico. Você poderá editá-lo, exportá-lo em PDF ou até regenerá-lo depois.
-              </p>
-            </div>
-            
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  if (confirm("Deseja mesmo refazer a geração? As edições manuais serão perdidas.")) {
-                    setGeneratedResult(null);
-                    setEditedSummary('');
-                  }
-                }}
-                className="px-4 py-2.5 border border-gray-200 text-gray-600 text-xs font-bold rounded-xl hover:bg-gray-50 transition-colors"
-              >
-                Refazer Geração
-              </button>
-              
-              <button
-                type="button"
-                onClick={handleSaveReport}
-                disabled={saving}
-                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-100 flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-80"
-              >
-                {saving ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Save className="w-3.5 h-3.5" />
-                )}
-                <span>Salvar Relatório</span>
-              </button>
-            </div>
-          </div>
-
-        </div>
-      )}
-
     </div>
   );
 }

@@ -1,16 +1,4 @@
-/*
-  [ANTI-AI] AUDITORIA DE ANTI-PADRÕES ENCONTRADOS:
-  - [ANTI-AI] encontrado: radial-gradient centralizado e simétrico atrás do mockup no topo do hero. Substituído por focos de glow assimétricos em cantos opostos.
-  - [ANTI-AI] encontrado: cards da seção de problemas com padding idêntico (p-6) e perfeitamente simétricos. Substituído por cards assimétricos com paddings variados e border-radius alternados.
-  - [ANTI-AI] encontrado: a headline do hero e subtítulo estavam centralizados para mobile e sem offset editorial à esquerda. Implementado alinhamento à esquerda com offset intencional usando clamp().
-  - [ANTI-AI] encontrado: o fundo original era sólido e plano. Adicionado ruído de película via body::before e glows assimétricos.
-  - [ANTI-AI] encontrado: hover states eram genéricos com apenas transições padrão de scale/opacity. Elevado para animações de shimmer personalizadas com respeito a prefers-reduced-motion.
-  - [ANTI-AI] encontrado: footer usava copyright boilerplate corporativo. Substituído por assinatura editorial sofisticada com a voz do produto.
-  - [ANTI-AI] encontrado: seção com layout perfeitamente simétrico com larguras e espaçamentos uniformes. Quebrado com assimetria intencional na proporção de colunas (1.6fr 1fr) e layouts de grid híbridos.
-  - [ANTI-AI] encontrado: tipografia padrão do Tailwind (Inter) usada sem contraponto de estilo, ritmo ou peso. Introduzido contraste de peso marcante (Inter 300 italic) ao lado da headline Syne e letras em caixa alta condensadas de 10-11px.
-*/
-
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSession } from '../context/SessionContext';
 import { 
@@ -21,63 +9,58 @@ import {
   Loader2
 } from 'lucide-react';
 
-// [ANTI-AI] Count-up com IntersectionObserver — dispara ao entrar na viewport
-function useCountUp(target: number, duration: number = 1800) {
-  const [count, setCount] = useState(0);
-  const ref = useRef<HTMLSpanElement>(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(([entry]) => {
-      if (!entry.isIntersecting) return;
-      observer.disconnect();
-
-      const start = performance.now();
-      const animate = (now: number) => {
-        const progress = Math.min((now - start) / duration, 1);
-        const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
-        setCount(Math.floor(eased * target));
-        if (progress < 1) requestAnimationFrame(animate);
-      };
-      requestAnimationFrame(animate);
-    });
-
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, [target, duration]);
-
-  return { count, ref };
-}
-
 export default function Landing() {
   const navigate = useNavigate();
   const { sessionReady } = useSession();
-  
-  // Real Gupify resume snippet typing simulation
-  const [typedText, setTypedText] = useState('');
-  const fullSnippet = 'Como Desenvolvedor Frontend especialista em React e Tailwind CSS, criei e implementei arquiteturas web responsivas e otimizei a performance de aplicações SPA de alta fidelidade visual. Reduzi o tempo de carregamento em 30%...';
-  
+
+  // Typewriter: usa ref pro index pra não capturar valor stale no closure
+  const typedRef = useRef<HTMLSpanElement>(null);
+  const indexRef = useRef(0);
+  const phaseRef = useRef<'typing' | 'waiting' | 'clearing'>('typing');
+  const fullSnippet = 'Desenvolvedor back-end com experiência em Java, Spring Boot e APIs RESTful. Atuei na construção de microsserviços escaláveis, integrações assíncronas com filas de mensagem e implementação de pipelines de CI/CD. Contribuí para a redução de latência em 40% em um sistema de alto volume...';
+
   useEffect(() => {
-    let index = 0;
-    const interval = setInterval(() => {
-      setTypedText((prev) => prev + fullSnippet.charAt(index));
-      index++;
-      if (index >= fullSnippet.length) {
-        setTimeout(() => {
-          setTypedText('');
-          index = 0;
-        }, 12000); // Wait and restart
+    const el = typedRef.current;
+    if (!el) return;
+
+    const tick = () => {
+      if (phaseRef.current === 'typing') {
+        indexRef.current++;
+        el.textContent = fullSnippet.slice(0, indexRef.current);
+        if (indexRef.current >= fullSnippet.length) {
+          phaseRef.current = 'waiting';
+        }
+      } else if (phaseRef.current === 'waiting') {
+        phaseRef.current = 'clearing';
+      } else {
+        indexRef.current = Math.max(0, indexRef.current - 4);
+        el.textContent = fullSnippet.slice(0, indexRef.current);
+        if (indexRef.current === 0) {
+          phaseRef.current = 'typing';
+        }
       }
-    }, 45);
-    return () => clearInterval(interval);
+    };
+
+    // Velocidades diferentes por fase
+    let timeout: ReturnType<typeof setTimeout>;
+    const schedule = () => {
+      const delay =
+        phaseRef.current === 'typing'
+          ? 30
+          : phaseRef.current === 'waiting'
+          ? 8000
+          : 12;
+      timeout = setTimeout(() => {
+        tick();
+        schedule();
+      }, delay);
+    };
+    schedule();
+    return () => clearTimeout(timeout);
   }, []);
 
-  const handleStart = () => {
-    navigate('/generate');
-  };
-
-  // Counting metrics for premium social proof
-  const otimizadosCount = useCountUp(14820, 2000);
-  const aprovadosCount = useCountUp(89, 1500);
+  // Comprimento atual pra exibir no contador
+  const handleStart = () => navigate('/generate');
 
   return (
     <div className="heroBackground min-h-screen relative overflow-hidden flex flex-col justify-between">
@@ -87,16 +70,14 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="lg:grid lg:grid-cols-12 lg:gap-12 items-center">
             
-            {/* [ANTI-AI] Text Column - Left-aligned with intentional offset clamp() */}
+            {/* Text Column */}
             <div className="sm:text-left md:max-w-2xl md:mx-auto lg:col-span-7 lg:text-left lg:pl-4">
               
-              {/* Premium tiny pill */}
               <div className="inline-flex items-center space-x-2 bg-indigo-50 border border-indigo-100 text-indigo-700 px-3.5 py-1.5 rounded-full text-[10px] font-bold tracking-widest uppercase mb-6">
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>Otimização Estratégica · ATS Engine</span>
               </div>
               
-              {/* [ANTI-AI] Headline editorial com offset — não centrada, não simétrica */}
               <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-gray-900 tracking-tight leading-none text-left lg:ml-[clamp(0px,4vw,60px)]">
                 Não seja descartado pelo 
                 <span className="block text-3xl sm:text-5xl lg:text-6xl font-normal text-gray-500 tracking-normal mt-1">
@@ -107,16 +88,14 @@ export default function Landing() {
                 </span>
               </h1>
               
-              {/* [ANTI-AI] Contraste de peso — suporte em itálico de peso fino */}
               <p className="mt-6 text-sm sm:text-base text-gray-600 leading-relaxed max-w-lg lg:ml-[clamp(0px,4vw,60px)] font-normal">
-                A IA da Gupy filtra 90% dos candidatos de forma automatizada. Nossa ferramenta reestrutura seu perfil usando inteligência semântica de cosseno no limite perfeito de 1.500 caracteres.
+                A IA da Gupy filtra a maioria dos candidatos automaticamente. Nossa ferramenta reestrutura seu perfil usando inteligência semântica no limite ideal de 1.500 caracteres.
               </p>
 
               <p className="mt-3 text-xs text-indigo-700 italic font-light lg:ml-[clamp(0px,4vw,60px)]">
                 * Desenvolvido para reverter o funil silencioso dos sistemas de triagem semântica.
               </p>
 
-              {/* [ANTI-AI] CTA com shimmer animado */}
               <div className="mt-8 sm:flex sm:justify-start gap-4 lg:ml-[clamp(0px,4vw,60px)]">
                 <button
                   onClick={handleStart}
@@ -126,7 +105,7 @@ export default function Landing() {
                   {!sessionReady ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Analisando seu perfil...
+                      Conectando...
                     </>
                   ) : (
                     <>
@@ -144,22 +123,19 @@ export default function Landing() {
                 </button>
               </div>
 
-              {/* Safe Session Notice */}
               <div className="mt-5 flex items-center text-[10px] tracking-wider uppercase font-bold text-gray-400 gap-1.5 lg:ml-[clamp(0px,4vw,60px)]">
                 <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Sessão temporária segura estabelecida na nuvem</span>
+                <span>Sessão temporária segura — nada é armazenado de forma permanente</span>
               </div>
             </div>
 
-            {/* [ANTI-AI] Visual Column - Deep CRT Terminal Mockup */}
+            {/* Visual Column — CRT Terminal */}
             <div className="mt-16 sm:mt-24 lg:mt-0 lg:col-span-5 relative">
               <div className="relative mx-auto w-full max-w-md lg:max-w-none">
                 
-                {/* [ANTI-AI] Glows assimétricos substituem radial centralizado */}
                 <div className="absolute -top-6 -left-6 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
                 <div className="absolute -bottom-8 -right-8 w-48 h-48 bg-violet-500/10 rounded-full blur-3xl pointer-events-none"></div>
                 
-                {/* Simulated CRT Terminal with scanlines */}
                 <div className="terminalCrt relative bg-gray-950 rounded-2xl border border-gray-800 shadow-2xl overflow-hidden">
                   <div className="bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center justify-between">
                     <div className="flex space-x-1.5">
@@ -174,7 +150,7 @@ export default function Landing() {
                     <div className="space-y-1">
                       <span className="text-[9px] uppercase font-bold text-indigo-500 tracking-wider">INPUT_RAW_CV</span>
                       <div className="p-2 bg-gray-900 border border-gray-800 rounded-lg flex items-center justify-between">
-                        <span className="text-gray-400 truncate">Curriculo_Candidato_Frontend.pdf</span>
+                        <span className="text-gray-400 truncate">Curriculo_Candidato.pdf</span>
                         <span className="text-[9px] text-emerald-500 bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-900/30">PARSED</span>
                       </div>
                     </div>
@@ -182,26 +158,22 @@ export default function Landing() {
                     <div className="space-y-1.5">
                       <div className="flex justify-between items-center text-[9px] uppercase font-bold text-indigo-500 tracking-wider">
                         <span>OUTPUT_GUPY_OPTIMIZED</span>
-                        <span className="text-emerald-400 font-bold">{typedText.length} / 1.500 CARACT.</span>
                       </div>
                       
-                      {/* Live Typewriter displaying genuine Gupify product text */}
                       <div className="p-3 bg-black/80 border border-gray-800 rounded-xl leading-relaxed text-gray-300 min-h-[96px]">
-                        <span>&quot;{typedText}</span>
+                        <span ref={typedRef}></span>
                         <span className="cursorTerminal"></span>
-                        <span>&quot;</span>
                       </div>
                     </div>
 
-                    {/* Metrics check */}
                     <div className="grid grid-cols-2 gap-2 text-[10px]">
                       <div className="p-2 bg-emerald-950/20 border border-emerald-900/30 rounded-lg flex items-center gap-1.5 text-emerald-400">
                         <CheckCircle className="w-3.5 h-3.5 shrink-0" />
-                        <span>ATS Score: 98% (Excelente)</span>
+                        <span>Semântica ATS OK</span>
                       </div>
                       <div className="p-2 bg-emerald-950/20 border border-emerald-900/30 rounded-lg flex items-center gap-1.5 text-emerald-400">
                         <CheckCircle className="w-3.5 h-3.5 shrink-0" />
-                        <span>Contém Verbos de Ação</span>
+                        <span>Verbos de Ação</span>
                       </div>
                     </div>
                   </div>
@@ -213,7 +185,7 @@ export default function Landing() {
         </div>
       </div>
 
-      {/* [ANTI-AI] Divisória editorial com microcopy com voz */}
+      {/* Divisória editorial */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
         <div className="editorialDivider">
           <span className="editorialDividerLabel">
@@ -222,7 +194,7 @@ export default function Landing() {
         </div>
       </div>
 
-      {/* [ANTI-AI] Grid com proporção não uniforme — sem colunas idênticas e sem cards simétricos */}
+      {/* Grid de problemas */}
       <div className="py-12 bg-white w-full">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-12">
@@ -237,7 +209,6 @@ export default function Landing() {
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
             
-            {/* Card Primário Destaque - Ocupa 7 colunas (Assimetria) */}
             <div className="gradientBorderCard-16 lg:col-span-7 p-8 shadow-sm flex flex-col justify-between relative overflow-hidden">
               <div className="absolute top-0 right-0 p-4 bg-rose-50 text-rose-600 rounded-bl-xl border-l border-b border-rose-100">
                 <ShieldAlert className="w-5 h-5" />
@@ -256,7 +227,6 @@ export default function Landing() {
               </div>
             </div>
 
-            {/* Card Secundário - Ocupa 5 colunas */}
             <div className="gradientBorderCard-12 lg:col-span-5 p-6 shadow-sm flex flex-col justify-between">
               <div>
                 <span className="text-[9px] uppercase font-extrabold tracking-wider text-amber-600 block mb-1">Estratégia de Escrita</span>
@@ -270,7 +240,6 @@ export default function Landing() {
               </div>
             </div>
 
-            {/* Card Terceiro - Ocupa 5 colunas */}
             <div className="gradientBorderCard-8 lg:col-span-5 p-5 shadow-sm flex flex-col justify-between">
               <div>
                 <span className="text-[9px] uppercase font-extrabold tracking-wider text-indigo-600 block mb-1">Engrenagem Estrutural</span>
@@ -284,40 +253,35 @@ export default function Landing() {
               </div>
             </div>
 
-            {/* Card Quarto Social Proof Premium - Ocupa 7 colunas (Assimetria) */}
             <div className="gradientBorderCard-16 lg:col-span-7 p-8 shadow-sm flex flex-col justify-between bg-indigo-50/10">
               <div>
-                <span className="text-[9px] uppercase font-extrabold tracking-wider text-emerald-600 block mb-1">Performance Comprovada</span>
-                <h3 className="text-xl font-black text-gray-950">Resultados da Otimização Semântica</h3>
-                
-                {/* Count-up social proof counters */}
-                <div className="grid grid-cols-2 gap-4 mt-6">
-                  <div className="p-3 bg-indigo-50/40 rounded-xl border border-indigo-100/30">
-                    <span className="text-3xl font-extrabold text-indigo-600 block tracking-tight">
-                      <span ref={otimizadosCount.ref}>{otimizadosCount.count.toLocaleString()}</span>+
-                    </span>
-                    <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">resumos otimizados</span>
+                <span className="text-[9px] uppercase font-extrabold tracking-wider text-emerald-600 block mb-1">Como Funciona</span>
+                <h3 className="text-xl font-black text-gray-950">Simples, rápido, sem cadastro</h3>
+                <p className="text-gray-500 text-xs mt-3 leading-relaxed">
+                  Cole seu currículo e a descrição da vaga. A IA analisa os requisitos, extrai as palavras-chave de maior peso semântico e gera um texto profissional pronto para colar no campo &quot;Sobre você&quot; da Gupy.
+                </p>
+                <div className="grid grid-cols-2 gap-3 mt-6">
+                  <div className="p-3 bg-indigo-50/40 rounded-xl border border-indigo-100/30 text-xs text-indigo-700 font-semibold">
+                    ✓ Sem cadastro necessário
                   </div>
-                  
-                  <div className="p-3 bg-indigo-50/40 rounded-xl border border-indigo-100/30">
-                    <span className="text-3xl font-extrabold text-emerald-600 block tracking-tight">
-                      <span ref={aprovadosCount.ref}>{aprovadosCount.count}</span>%
-                    </span>
-                    <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">alta nas entrevistas</span>
+                  <div className="p-3 bg-indigo-50/40 rounded-xl border border-indigo-100/30 text-xs text-indigo-700 font-semibold">
+                    ✓ Sessão temporária segura
+                  </div>
+                  <div className="p-3 bg-indigo-50/40 rounded-xl border border-indigo-100/30 text-xs text-indigo-700 font-semibold">
+                    ✓ Checklist de qualidade ATS
+                  </div>
+                  <div className="p-3 bg-indigo-50/40 rounded-xl border border-indigo-100/30 text-xs text-indigo-700 font-semibold">
+                    ✓ Exportação em PDF
                   </div>
                 </div>
               </div>
-
-              <p className="text-[10px] text-gray-400 mt-6 leading-relaxed">
-                * Mapeamento estatístico com base em feedbacks de candidatos que otimizaram seus resumos e obtiveram retorno de entrevistas nas etapas iniciais de triagem.
-              </p>
             </div>
 
           </div>
         </div>
       </div>
 
-      {/* [ANTI-AI] Divisória editorial secundária */}
+      {/* Divisória editorial */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
         <div className="editorialDivider">
           <span className="editorialDividerLabel">
@@ -326,7 +290,7 @@ export default function Landing() {
         </div>
       </div>
 
-      {/* Step by Step Flow with varied layout spacing */}
+      {/* How it works */}
       <div className="py-16 bg-gray-50/30 w-full">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
@@ -341,7 +305,7 @@ export default function Landing() {
               </div>
               <h4 className="font-bold text-gray-900 text-sm">Faça o Upload do CV</h4>
               <p className="text-xs text-gray-500 mt-2 leading-relaxed font-normal">
-                Envie seu currículo. Ele será processado localmente no navegador ou via API em conformidade com as regras de confidencialidade de dados.
+                Envie seu currículo em PDF. Ele é processado de forma segura e temporária para extração de contexto.
               </p>
             </div>
 
@@ -351,7 +315,7 @@ export default function Landing() {
               </div>
               <h4 className="font-bold text-gray-900 text-sm">Cole os Dados da Vaga</h4>
               <p className="text-xs text-gray-500 mt-2 leading-relaxed font-normal">
-                Forneça o título da função e o escopo da vaga. Nossa IA varrerá os requisitos e termos técnicos de maior relevância semântica.
+                Informe o título do cargo e a descrição completa. Nossa IA extrai os termos de maior relevância semântica.
               </p>
             </div>
 
@@ -359,9 +323,9 @@ export default function Landing() {
               <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center font-black text-sm mb-4 border border-indigo-100">
                 03
               </div>
-              <h4 className="font-bold text-gray-900 text-sm">Ajuste e Verifique</h4>
+              <h4 className="font-bold text-gray-900 text-sm">Revise e Ajuste</h4>
               <p className="text-xs text-gray-500 mt-2 leading-relaxed font-normal">
-                Edite os termos no editor interativo e audite instantaneamente seu score de aderência nas verificações automatizadas de qualidade.
+                Edite o texto gerado no editor interativo e acompanhe o score de aderência em tempo real.
               </p>
             </div>
 
@@ -371,7 +335,7 @@ export default function Landing() {
               </div>
               <h4 className="font-bold text-gray-900 text-sm">Publique no Cadastro</h4>
               <p className="text-xs text-gray-500 mt-2 leading-relaxed font-normal">
-                Copie o texto pronto do painel, insira na plataforma da Gupy e garanta posicionamento de destaque na listagem do recrutador.
+                Copie o texto pronto e cole diretamente no campo &quot;Sobre você&quot; da plataforma Gupy.
               </p>
             </div>
           </div>
@@ -382,14 +346,14 @@ export default function Landing() {
               disabled={!sessionReady}
               className="ctaShimmer inline-flex items-center px-8 py-4 bg-indigo-600 text-white text-xs tracking-wider uppercase font-extrabold rounded-xl shadow-md transition-all active:scale-95 disabled:opacity-75"
             >
-              {!sessionReady ? 'Analisando seu perfil...' : 'Otimizar meu perfil de graça'}
+              {!sessionReady ? 'Conectando...' : 'Otimizar meu perfil agora'}
               <ArrowRight className="ml-2 w-4 h-4" />
             </button>
           </div>
         </div>
       </div>
 
-      {/* [ANTI-AI] Footer com assinatura e voz do produto, não boilerplate */}
+      {/* Footer */}
       <footer className="bg-gray-950 text-gray-400 py-12 border-t border-gray-900 w-full mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-6">
@@ -401,7 +365,7 @@ export default function Landing() {
                 <span className="font-extrabold text-white tracking-wider">Gupify Web</span>
               </div>
               <p className="mt-2 text-[10px] text-gray-500 max-w-sm font-normal">
-                Ferramenta educacional e otimizadora independente. Não possui qualquer afiliação oficial com a Gupy Inc.
+                Ferramenta educacional e otimizadora independente. Sem afiliação oficial com a Gupy Inc.
               </p>
             </div>
             

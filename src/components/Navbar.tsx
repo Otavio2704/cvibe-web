@@ -57,9 +57,9 @@ export default function Navbar() {
                 </span>
               </Link>
 
-              {/* Minimalist Status Badge */}
+              {/* Status Badge */}
               <span className="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-indigo-50 text-indigo-700 border border-indigo-100/50">
-                Beta Aberto · Otimizador ATS
+                Otimizador ATS · Gratuito
               </span>
             </div>
 
