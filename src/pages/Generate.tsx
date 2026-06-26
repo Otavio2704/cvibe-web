@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { generate as generateApi, reports as reportsApi } from '../services/api';
 import CvUploader from '../components/CvUploader';
@@ -15,6 +15,100 @@ import {
   Save,
   RotateCcw,
 } from 'lucide-react';
+
+const FLOATING_KEYWORDS = [
+  'React', 'TypeScript', 'Node.js', 'Spring Boot', 'Docker', 'AWS',
+  'PostgreSQL', 'Git', 'API REST', 'Scrum', 'CI/CD', 'Kubernetes',
+  'Java', 'Python', 'Tailwind', 'Clean Code', 'TDD', 'Microsserviços',
+  'Redis', 'MongoDB', 'GraphQL', 'Next.js', 'Figma', 'Agile',
+];
+
+function GeneratingOverlay() {
+  const [visibleWords, setVisibleWords] = useState<{ id: number; word: string; x: number; y: number; delay: number; size: number }[]>([]);
+  const [dots, setDots] = useState('');
+  const counterRef = useRef(0);
+
+  // Anima os "..."
+  useEffect(() => {
+    const id = setInterval(() => {
+      setDots(d => d.length >= 3 ? '' : d + '.');
+    }, 500);
+    return () => clearInterval(id);
+  }, []);
+
+  // Adiciona palavras flutuantes aleatoriamente
+  useEffect(() => {
+    const add = () => {
+      const word = FLOATING_KEYWORDS[Math.floor(Math.random() * FLOATING_KEYWORDS.length)];
+      const id   = counterRef.current++;
+      setVisibleWords(prev => [
+        ...prev.slice(-14), // máximo 15 palavras na tela
+        {
+          id,
+          word,
+          x: 5 + Math.random() * 90,   // % horizontal
+          y: 5 + Math.random() * 90,   // % vertical
+          delay: 0,
+          size: Math.random() > 0.6 ? 13 : 11,
+        },
+      ]);
+    };
+
+    add();
+    const id = setInterval(add, 600);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-50/90 backdrop-blur-sm">
+
+      {/* Palavras flutuantes no fundo */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
+        {visibleWords.map(w => (
+          <span
+            key={w.id}
+            className="absolute font-semibold text-indigo-400/30 animate-float-word transition-all"
+            style={{
+              left: `${w.x}%`,
+              top:  `${w.y}%`,
+              fontSize: w.size,
+              animationDuration: `${2.5 + Math.random() * 2}s`,
+            }}
+          >
+            {w.word}
+          </span>
+        ))}
+      </div>
+
+      {/* Card central */}
+      <div className="relative z-10 flex flex-col items-center text-center max-w-sm px-8 py-10 bg-white rounded-2xl shadow-xl border border-slate-100">
+
+        {/* Ícone animado */}
+        <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center mb-6">
+          <Sparkles className="w-8 h-8 text-indigo-500 animate-pulse" />
+        </div>
+
+        <h2 className="text-lg font-black text-slate-900 mb-1">
+          Gerando resumo{dots}
+        </h2>
+        <p className="text-sm text-slate-500 leading-relaxed mb-6">
+          A IA está analisando seu currículo e extraindo as{' '}
+          <span className="text-indigo-600 font-semibold">palavras-chave de maior impacto</span>{' '}
+          para o algoritmo da Gupy.
+        </p>
+
+        {/* Barra indeterminada */}
+        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+          <div className="h-full bg-indigo-500 rounded-full animate-indeterminate" />
+        </div>
+
+        <p className="text-[11px] text-slate-400 mt-4">
+          Isso pode levar alguns segundos.
+        </p>
+      </div>
+    </div>
+  );
+}
 
 /* Reutiliza a mesma lógica de score do QualityChecklist */
 const CLICHES     = ['proativo','dedicado','fora da caixa','perfeccionista','apaixonado','motivado'];
@@ -64,7 +158,6 @@ export default function Generate() {
 
   // UI
   const [generating, setGenerating] = useState(false);
-  const [genStepIdx, setGenStepIdx] = useState(0);
   const [saving,     setSaving]     = useState(false);
   const [error,      setError]      = useState<string | null>(null);
   const [success,    setSuccess]    = useState(false);
@@ -98,26 +191,14 @@ export default function Generate() {
 
     try {
       setGenerating(true);
-      setGenStepIdx(0);
       setError(null);
       setGeneratedResult(null);
-
-      // Anima os steps enquanto a API responde
-      let step = 0;
-      const stepInterval = setInterval(() => {
-        step++;
-        if (step < GENERATION_STEPS.length) setGenStepIdx(step);
-        else clearInterval(stepInterval);
-      }, 700);
 
       const response = await generateApi.run({
         cvId:       selectedCv.id,
         jobTitle:   jobTitle.trim(),
         jobContent: jobContent.trim(),
       });
-
-      clearInterval(stepInterval);
-      setGenStepIdx(GENERATION_STEPS.length); // todos concluídos
 
       if (response?.summary) {
         setGeneratedResult(response);
@@ -161,50 +242,7 @@ export default function Generate() {
 
   /* ── Loading overlay ──────────────────────────────────────────────────── */
 
-  if (generating) {
-    return (
-      <div className="max-w-lg mx-auto px-6 py-20 flex flex-col items-center animate-fade-in">
-        <div className="mb-8">
-          <ScoreRing
-            score={Math.round((genStepIdx / GENERATION_STEPS.length) * 100)}
-            size={96}
-            stroke={7}
-          />
-        </div>
-
-        <h2 className="text-lg font-black text-slate-900 mb-1">Analisando sua candidatura</h2>
-        <p className="text-sm text-slate-500 mb-8 text-center">
-          A IA está mapeando palavras-chave de alto impacto para o algoritmo da Gupy.
-        </p>
-
-        <div className="w-full space-y-2">
-          {GENERATION_STEPS.map((s, i) => {
-            const done    = i < genStepIdx;
-            const current = i === genStepIdx;
-            return (
-              <div
-                key={i}
-                className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg text-xs font-medium border transition-all ${
-                  done
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                    : current
-                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                    : 'bg-slate-50 text-slate-400 border-slate-100'
-                }`}
-              >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                    done ? 'bg-emerald-500' : current ? 'bg-indigo-500 pulse-dot' : 'bg-slate-300'
-                  }`}
-                />
-                {s}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
+  if (generating) return <GeneratingOverlay />;
 
   /* ── Results ──────────────────────────────────────────────────────────── */
 

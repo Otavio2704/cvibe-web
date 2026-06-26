@@ -12,6 +12,100 @@ import {
   ArrowRight
 } from 'lucide-react';
 
+export function Sidebar() {
+  const { isMockMode, endSession } = useSession();
+  const location = useLocation();
+  const [resetting, setResetting] = useState(false);
+
+  const navItems = [
+    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    { name: 'Otimizar Currículo', path: '/generate', icon: Sparkles },
+    { name: 'Guia da Gupy', path: '/guia', icon: BookOpen },
+    { name: 'Checklist Interativo', path: '/checklist', icon: CheckSquare },
+  ];
+
+  const isActive = (path: string) => {
+    if (path === '/') return location.pathname === '/';
+    return location.pathname.startsWith(path);
+  };
+
+  const handleResetSession = async () => {
+    if (confirm("Tem certeza que deseja encerrar a sessão atual? Isso limpará seus currículos e relatórios temporários do simulador e gerará uma nova sessão.")) {
+      setResetting(true);
+      await endSession();
+      setResetting(false);
+      window.location.href = '/';
+    }
+  };
+
+  if (location.pathname === '/') return null;
+
+  return (
+    <aside className="hidden lg:flex flex-col justify-between w-64 bg-white border-r border-slate-200/80 shrink-0 min-h-screen sticky top-0 p-6 z-40 animate-fade-in">
+      <div>
+        {/* Logo */}
+        <Link to="/dashboard" className="flex items-center space-x-2.5 mb-8 px-2">
+          <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-md shadow-indigo-200">
+            G
+          </div>
+          <span className="text-xl font-black tracking-tight bg-gradient-to-r from-indigo-600 to-indigo-900 bg-clip-text text-transparent">
+            Gupify<span className="text-slate-400 font-normal text-sm ml-0.5">Web</span>
+          </span>
+        </Link>
+
+        {/* Nav links */}
+        <nav className="space-y-1.5">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.path);
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  active
+                    ? 'bg-indigo-50 text-indigo-700 shadow-sm shadow-indigo-100/50'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <Icon className={`w-4 h-4 ${active ? 'text-indigo-600' : 'text-slate-400'}`} />
+                <span>{item.name}</span>
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* Bottom section com Status e Reset */}
+      <div className="pt-6 border-t border-slate-100 space-y-4">
+        <div className="flex items-center justify-between px-1">
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</span>
+          {isMockMode ? (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200/60 animate-pulse">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span>
+              Simulador
+            </span>
+          ) : (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
+              API Online
+            </span>
+          )}
+        </div>
+
+        <button
+          onClick={handleResetSession}
+          disabled={resetting}
+          className="w-full text-xs font-bold text-slate-500 hover:text-rose-600 flex items-center justify-center space-x-2 py-2.5 px-3 rounded-xl border border-slate-200 hover:border-rose-200 bg-slate-50/50 hover:bg-rose-50/50 transition-all shadow-sm"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${resetting ? 'animate-spin' : ''}`} />
+          <span>Nova Sessão</span>
+        </button>
+      </div>
+    </aside>
+  );
+}
+
 export default function Navbar() {
   const { isMockMode, endSession } = useSession();
   const location = useLocation();
@@ -39,15 +133,12 @@ export default function Navbar() {
     return location.pathname.startsWith(path);
   };
 
-  // [ANTI-AI] Barra de cima preenchida de forma elegante e minimalista na Landing Page (/)
-  // Evita poluição de abas internas antes do login, mantendo o visual equilibrado.
   if (location.pathname === '/') {
     return (
       <nav className="bg-white/95 border-b border-gray-100 sticky top-0 z-50 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center space-x-3">
-              {/* Logo */}
               <Link to="/" className="flex items-center space-x-2 flex-shrink-0">
                 <div className="w-9 h-9 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-md shadow-indigo-200">
                   G
@@ -57,13 +148,11 @@ export default function Navbar() {
                 </span>
               </Link>
 
-              {/* Status Badge */}
               <span className="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-indigo-50 text-indigo-700 border border-indigo-100/50">
                 Otimizador ATS · Gratuito
               </span>
             </div>
 
-            {/* Direct CTA to the workspace */}
             <div className="flex items-center">
               <Link
                 to="/dashboard"
@@ -80,11 +169,10 @@ export default function Navbar() {
   }
 
   return (
-    <nav className="bg-white border-b border-gray-100 sticky top-0 z-50 animate-fade-in">
+    <nav className="bg-white border-b border-gray-100 sticky top-0 z-50 animate-fade-in lg:hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            {/* [ANTI-AI] A logo redireciona para o painel de controle (/dashboard) nas páginas internas, evitando retornar à tela de apresentação */}
             <Link to="/dashboard" className="flex items-center space-x-2 flex-shrink-0" title="Voltar ao Painel">
               <div className="w-9 h-9 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-md shadow-indigo-200">
                 G
@@ -93,60 +181,9 @@ export default function Navbar() {
                 Gupify<span className="text-gray-400 font-normal text-sm ml-0.5">Web</span>
               </span>
             </Link>
-
-            {/* Desktop Navigation Links */}
-            <div className="hidden md:flex ml-10 space-x-1">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const active = isActive(item.path);
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className={`flex items-center space-x-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      active
-                        ? 'bg-indigo-50 text-indigo-700'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    }`}
-                  >
-                    <Icon className={`w-4 h-4 ${active ? 'text-indigo-600' : 'text-gray-400'}`} />
-                    <span>{item.name}</span>
-                  </Link>
-                );
-              })}
-            </div>
           </div>
 
-          {/* Right section with Session Status & Controls */}
-          <div className="hidden md:flex items-center space-x-4">
-            {/* API Status Badge */}
-            <div className="flex items-center">
-              {isMockMode ? (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/50" title="A API remota está offline ou inacessível. O Gupify Web está utilizando um simulador completo no navegador.">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5 animate-pulse"></span>
-                  Simulador Local Ativo
-                </span>
-              ) : (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/50" title="Conexão direta ativa com o gupify-api">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
-                  API Conectada
-                </span>
-              )}
-            </div>
-
-            <button
-              onClick={handleResetSession}
-              disabled={resetting}
-              className="text-xs font-medium text-gray-500 hover:text-red-600 flex items-center space-x-1 py-1 px-2 rounded-md border border-gray-200 hover:border-red-200 bg-white transition-all shadow-sm"
-              title="Apaga a sessão atual e inicia uma nova"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${resetting ? 'animate-spin' : ''}`} />
-              <span>Resetar Sessão</span>
-            </button>
-          </div>
-
-          {/* Mobile menu button */}
-          <div className="flex items-center md:hidden">
+          <div className="flex items-center">
             <button
               onClick={() => setIsOpen(!isOpen)}
               className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none"
@@ -157,9 +194,8 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Menu */}
       {isOpen && (
-        <div className="md:hidden bg-white border-b border-gray-100 px-2 pt-2 pb-4 space-y-1 shadow-inner animate-fade-in">
+        <div className="bg-white border-b border-gray-100 px-2 pt-2 pb-4 space-y-1 shadow-inner animate-fade-in">
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.path);
@@ -181,7 +217,6 @@ export default function Navbar() {
           })}
 
           <div className="pt-4 pb-2 border-t border-gray-100 mt-3 px-3 flex flex-col gap-3">
-            {/* Status for mobile */}
             <div className="flex items-center justify-between">
               <span className="text-xs text-gray-500">Status da API:</span>
               {isMockMode ? (

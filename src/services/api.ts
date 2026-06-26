@@ -1,216 +1,377 @@
-import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { useSession } from '../context/SessionContext';
-import { 
-  LayoutDashboard, 
-  Sparkles, 
-  BookOpen, 
-  CheckSquare, 
-  Menu, 
-  X, 
-  RefreshCw,
-  ArrowRight
-} from 'lucide-react';
+// Centralized API communication for Gupify Web
+// Uses VITE_API_BASE_URL and credentials: 'include' as required by the docs.
+// Includes an automatic fallback to local simulation if the backend is offline/unreachable.
 
-export default function Navbar() {
-  const { isMockMode, endSession } = useSession();
-  const location = useLocation();
-  const [isOpen, setIsOpen] = useState(false);
-  const [resetting, setResetting] = useState(false);
+const API_BASE_URL = (import.meta as any).env.VITE_API_BASE_URL || 'https://gupify.onrender.com';
 
-  const navItems = [
-    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'Otimizar Currículo', path: '/generate', icon: Sparkles },
-    { name: 'Guia da Gupy', path: '/guia', icon: BookOpen },
-    { name: 'Checklist Interativo', path: '/checklist', icon: CheckSquare },
-  ];
+let useMock = false;
+let onMockStateChange: ((val: boolean) => void) | null = null;
+let lastReportId: string | null = null;
 
-  const handleResetSession = async () => {
-    if (confirm("Tem certeza que deseja encerrar a sessão atual? Isso limpará seus currículos e relatórios temporários do simulador e gerará uma nova sessão.")) {
-      setResetting(true);
-      await endSession();
-      setResetting(false);
-      window.location.href = '/';
-    }
-  };
+// Guarda a Promise de inicialização de sessão para que nenhuma chamada
+// autenticada seja disparada antes de o cookie estar disponível.
+let sessionInitPromise: Promise<any> | null = null;
 
-  const isActive = (path: string) => {
-    if (path === '/') return location.pathname === '/';
-    return location.pathname.startsWith(path);
-  };
+export const setMockStateListener = (callback: (val: boolean) => void) => {
+  onMockStateChange = callback;
+};
 
-  // [ANTI-AI] Barra de cima preenchida de forma elegante e minimalista na Landing Page (/)
-  // Evita poluição de abas internas antes do login, mantendo o visual equilibrado.
-  if (location.pathname === '/') {
-    return (
-      <nav className="bg-white/95 border-b border-gray-100 sticky top-0 z-50 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center space-x-3">
-              {/* Logo */}
-              <Link to="/" className="flex items-center space-x-2 flex-shrink-0">
-                <div className="w-9 h-9 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-md shadow-indigo-200">
-                  G
-                </div>
-                <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 to-indigo-800 bg-clip-text text-transparent">
-                  Gupify<span className="text-gray-400 font-normal text-sm ml-0.5">Web</span>
-                </span>
-              </Link>
+export const isUsingMock = () => useMock;
 
-              {/* Status Badge */}
-              <span className="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-indigo-50 text-indigo-700 border border-indigo-100/50">
-                Otimizador ATS · Gratuito
-              </span>
-            </div>
+const triggerMockMode = () => {
+  if (!useMock) {
+    useMock = true;
+    console.warn(`[Gupify API] Conexão com ${API_BASE_URL} falhou. Ativando Modo Simulador Local (localStorage) para fins de demonstração.`);
+    if (onMockStateChange) onMockStateChange(true);
+  }
+};
 
-            {/* Direct CTA to the workspace */}
-            <div className="flex items-center">
-              <Link
-                to="/dashboard"
-                className="inline-flex items-center gap-1.5 px-4.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] uppercase tracking-wider font-extrabold rounded-xl shadow-sm transition-all hover:shadow-indigo-100 active:scale-95"
-              >
-                <span>Acessar Painel</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
-    );
+// Verifica se a resposta indica problema de autenticação/autorização.
+// 401 = sem sessão, 403 = sessão inválida ou expirada.
+const isAuthError = (status: number) => status === 401 || status === 403;
+
+const apiFetch = async (path: string, options: RequestInit = {}) => {
+  // Garante que a sessão foi inicializada antes de qualquer chamada autenticada.
+  // Rotas públicas (ex: POST /api/session) não entram nessa fila.
+  const isPublicRoute = path === '/api/session' && (!options.method || options.method === 'POST');
+  if (!isPublicRoute && sessionInitPromise) {
+    await sessionInitPromise;
   }
 
-  return (
-    <nav className="bg-white border-b border-gray-100 sticky top-0 z-50 animate-fade-in">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          <div className="flex items-center">
-            {/* [ANTI-AI] A logo redireciona para o painel de controle (/dashboard) nas páginas internas, evitando retornar à tela de apresentação */}
-            <Link to="/dashboard" className="flex items-center space-x-2 flex-shrink-0" title="Voltar ao Painel">
-              <div className="w-9 h-9 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-md shadow-indigo-200">
-                G
-              </div>
-              <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 to-indigo-800 bg-clip-text text-transparent">
-                Gupify<span className="text-gray-400 font-normal text-sm ml-0.5">Web</span>
-              </span>
-            </Link>
+  try {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+      }
+    });
 
-            {/* Desktop Navigation Links */}
-            <div className="hidden md:flex ml-10 space-x-1">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const active = isActive(item.path);
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className={`flex items-center space-x-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      active
-                        ? 'bg-indigo-50 text-indigo-700'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    }`}
-                  >
-                    <Icon className={`w-4 h-4 ${active ? 'text-indigo-600' : 'text-gray-400'}`} />
-                    <span>{item.name}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
+    // Erros de autenticação ativam o mock — a sessão não está válida.
+    if (isAuthError(response.status)) {
+      triggerMockMode();
+      throw new Error(`Auth error: ${response.status}`);
+    }
 
-          {/* Right section with Session Status & Controls */}
-          <div className="hidden md:flex items-center space-x-4">
-            {/* API Status Badge */}
-            <div className="flex items-center">
-              {isMockMode ? (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/50" title="A API remota está offline ou inacessível. O Gupify Web está utilizando um simulador completo no navegador.">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5 animate-pulse"></span>
-                  Simulador Local Ativo
-                </span>
-              ) : (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/50" title="Conexão direta ativa com o gupify-api">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
-                  API Conectada
-                </span>
-              )}
-            </div>
+    if (useMock) {
+      useMock = false;
+      if (onMockStateChange) onMockStateChange(false);
+    }
 
-            <button
-              onClick={handleResetSession}
-              disabled={resetting}
-              className="text-xs font-medium text-gray-500 hover:text-red-600 flex items-center space-x-1 py-1 px-2 rounded-md border border-gray-200 hover:border-red-200 bg-white transition-all shadow-sm"
-              title="Apaga a sessão atual e inicia uma nova"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${resetting ? 'animate-spin' : ''}`} />
-              <span>Resetar Sessão</span>
-            </button>
-          </div>
+    return response;
+  } catch (error) {
+    triggerMockMode();
+    throw error;
+  }
+};
 
-          {/* Mobile menu button */}
-          <div className="flex items-center md:hidden">
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none"
-            >
-              {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
-          </div>
-        </div>
-      </div>
+// --- SIMULATION DATABASE (localStorage) ---
+const getLocalData = (key: string, defaultValue: any) => {
+  const data = localStorage.getItem(key);
+  return data ? JSON.parse(data) : defaultValue;
+};
 
-      {/* Mobile Menu */}
-      {isOpen && (
-        <div className="md:hidden bg-white border-b border-gray-100 px-2 pt-2 pb-4 space-y-1 shadow-inner animate-fade-in">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(item.path);
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => setIsOpen(false)}
-                className={`flex items-center space-x-2.5 px-3 py-2 rounded-md text-base font-medium transition-colors ${
-                  active
-                    ? 'bg-indigo-50 text-indigo-700'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                }`}
-              >
-                <Icon className={`w-5 h-5 ${active ? 'text-indigo-600' : 'text-gray-400'}`} />
-                <span>{item.name}</span>
-              </Link>
-            );
-          })}
+const setLocalData = (key: string, data: any) => {
+  localStorage.setItem(key, JSON.stringify(data));
+};
 
-          <div className="pt-4 pb-2 border-t border-gray-100 mt-3 px-3 flex flex-col gap-3">
-            {/* Status for mobile */}
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-gray-500">Status da API:</span>
-              {isMockMode ? (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/50">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5 animate-pulse"></span>
-                  Simulador Local Ativo
-                </span>
-              ) : (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/50">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
-                  API Conectada
-                </span>
-              )}
-            </div>
+const initMockDB = () => {
+  if (!localStorage.getItem('gupify_mock_cvs')) {
+    setLocalData('gupify_mock_cvs', [
+      {
+        id: 'cv-1',
+        name: 'Curriculo_Frontend_React.pdf',
+        content: 'Desenvolvedor Frontend com 3 anos de experiência em React, Tailwind CSS e TypeScript.',
+        uploadedAt: new Date(Date.now() - 3600000 * 24 * 3).toISOString()
+      }
+    ]);
+  }
 
-            <button
-              onClick={() => {
-                setIsOpen(false);
-                handleResetSession();
-              }}
-              disabled={resetting}
-              className="w-full text-center text-sm text-red-600 bg-red-50 hover:bg-red-100 py-2 px-3 rounded-md font-medium transition-all flex items-center justify-center space-x-2"
-            >
-              <RefreshCw className={`w-4 h-4 ${resetting ? 'animate-spin' : ''}`} />
-              <span>Resetar Sessão Atual</span>
-            </button>
-          </div>
-        </div>
-      )}
-    </nav>
+  if (!localStorage.getItem('gupify_mock_reports')) {
+    setLocalData('gupify_mock_reports', []);
+  }
+};
+
+initMockDB();
+
+const simulateAIGeneration = (cvText: string, jobTitle: string, jobContent: string) => {
+  const sampleKeywords = ['React', 'TypeScript', 'Node.js', 'Tailwind CSS', 'Git', 'API REST', 'Scrum', 'SQL', 'Docker', 'Spring Boot', 'Java'];
+  const words = (jobTitle + ' ' + jobContent).toLowerCase().replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, '').split(/\s+/);
+
+  const matchedKeywords = sampleKeywords.filter(kw =>
+    words.includes(kw.toLowerCase()) || jobTitle.toLowerCase().includes(kw.toLowerCase())
   );
-}
+
+  while (matchedKeywords.length < 3) {
+    const defaultKws = ['Metodologias Ágeis', 'Resolução de Problemas', 'Clean Code'];
+    const nextKw = defaultKws.find(k => !matchedKeywords.includes(k));
+    matchedKeywords.push(nextKw || 'Boas Práticas');
+  }
+
+  const selectedKeywords = matchedKeywords.slice(0, 3);
+  const summary = `Como profissional especializado em ${jobTitle}, desenvolvi e criei soluções focadas em alto desempenho. Com ampla experiência prática na utilização de ${selectedKeywords.join(', ')}, liderei a arquitetura e implementação de módulos dinâmicos alinhados aos objetivos estratégicos da empresa.`;
+
+  return { summary, keywords: selectedKeywords };
+};
+
+// --- EXPORTED API CALLS ---
+
+export const session = {
+  init: async () => {
+    // Registra a Promise para que outras chamadas possam aguardá-la.
+    sessionInitPromise = (async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/session`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        return await res.json();
+      } catch (err) {
+        triggerMockMode();
+        return { success: true, sessionId: 'mock-sess-xyz' };
+      }
+    })();
+
+    return sessionInitPromise;
+  },
+
+  check: async () => {
+    try {
+      const res = await apiFetch('/api/session');
+      return await res.json();
+    } catch (err) {
+      triggerMockMode();
+      return { valid: true, sessionId: 'mock-sess-xyz' };
+    }
+  },
+
+  destroy: async () => {
+    try {
+      await apiFetch('/api/session', { method: 'DELETE' });
+      return { success: true };
+    } catch (err) {
+      triggerMockMode();
+      return { success: true };
+    }
+  }
+};
+
+export const cv = {
+  upload: async (formData: FormData) => {
+    if (sessionInitPromise) await sessionInitPromise;
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/cv/upload`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      });
+      if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+      const data = await res.json();
+      return {
+        ...data,
+        name: data.fileName || data.name,
+        uploadedAt: data.createdAt || data.uploadedAt
+      };
+    } catch (err) {
+      triggerMockMode();
+      const file = formData.get('file') as File | null;
+      const fileName = file ? file.name : 'Curriculo_Enviado.pdf';
+      const newCv = {
+        id: 'cv-' + Math.random().toString(36).substring(2, 9),
+        name: fileName,
+        content: `Conteúdo simulado extraído de ${fileName}.`,
+        uploadedAt: new Date().toISOString()
+      };
+      const cvs = getLocalData('gupify_mock_cvs', []);
+      cvs.push(newCv);
+      setLocalData('gupify_mock_cvs', cvs);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return newCv;
+    }
+  },
+
+  list: async () => {
+    try {
+      const res = await apiFetch('/api/cv');
+      const list = await res.json();
+      return (list || []).map((item: any) => ({
+        ...item,
+        name: item.fileName || item.name,
+        uploadedAt: item.createdAt || item.uploadedAt
+      }));
+    } catch (err) {
+      triggerMockMode();
+      return getLocalData('gupify_mock_cvs', []);
+    }
+  },
+
+  remove: async (id: string) => {
+    try {
+      const res = await apiFetch(`/api/cv/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
+      return { success: true };
+    } catch (err) {
+      triggerMockMode();
+      let cvs = getLocalData('gupify_mock_cvs', []);
+      cvs = cvs.filter((item: any) => item.id !== id);
+      setLocalData('gupify_mock_cvs', cvs);
+      return { success: true };
+    }
+  }
+};
+
+export const generate = {
+  run: async (body: { cvId: string; jobTitle: string; jobContent: string }) => {
+    try {
+      const res = await apiFetch('/api/generate', {
+        method: 'POST',
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      lastReportId = data.reportId;
+      return {
+        ...data,
+        id: data.reportId,
+        cvId: body.cvId,
+        jobTitle: body.jobTitle,
+        jobContent: body.jobContent
+      };
+    } catch (err) {
+      triggerMockMode();
+      const cvs = getLocalData('gupify_mock_cvs', []);
+      const selectedCv = cvs.find((c: any) => c.id === body.cvId) || { content: 'vazio', name: 'Curriculo.pdf' };
+      const aiResult = simulateAIGeneration(selectedCv.content, body.jobTitle, body.jobContent);
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      return {
+        success: true,
+        summary: aiResult.summary,
+        keywords: aiResult.keywords,
+        cvId: body.cvId,
+        cvName: selectedCv.name,
+        jobTitle: body.jobTitle,
+        jobContent: body.jobContent
+      };
+    }
+  }
+};
+
+export const reports = {
+  list: async () => {
+    try {
+      const res = await apiFetch('/api/reports');
+      const list = await res.json();
+      return (list || []).map((r: any) => ({
+        ...r,
+        jobTitle: r.jobDescriptionTitle || r.jobTitle || 'Vaga Alvo',
+        jobContent: r.jobDescriptionContent || r.jobContent || '',
+        cvName: r.cvName || 'Currículo Selecionado'
+      }));
+    } catch (err) {
+      triggerMockMode();
+      return getLocalData('gupify_mock_reports', []);
+    }
+  },
+
+  get: async (id: string) => {
+    try {
+      const res = await apiFetch(`/api/reports/${id}`);
+      const r = await res.json();
+      return {
+        ...r,
+        jobTitle: r.jobDescriptionTitle || r.jobTitle || 'Vaga Alvo',
+        jobContent: r.jobDescriptionContent || r.jobContent || '',
+        cvName: r.cvName || 'Currículo Selecionado'
+      };
+    } catch (err) {
+      triggerMockMode();
+      const list = getLocalData('gupify_mock_reports', []);
+      const found = list.find((r: any) => r.id === id);
+      if (!found) throw new Error('Não encontrado');
+      return found;
+    }
+  },
+
+  update: async (id: string, body: { summary: string }) => {
+    try {
+      const res = await apiFetch(`/api/reports/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(body)
+      });
+      return await res.json();
+    } catch (err) {
+      triggerMockMode();
+      const list = getLocalData('gupify_mock_reports', []);
+      const index = list.findIndex((r: any) => r.id === id);
+      if (index !== -1) {
+        list[index] = { ...list[index], ...body };
+        setLocalData('gupify_mock_reports', list);
+        return list[index];
+      }
+      throw new Error('Não encontrado');
+    }
+  },
+
+  create: async (body: { cvId: string; cvName?: string; jobTitle: string; jobContent: string; summary: string; keywords?: string[]; score?: number }) => {
+    try {
+      if (lastReportId) {
+        const id = lastReportId;
+        lastReportId = null;
+        await apiFetch(`/api/reports/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ summary: body.summary })
+        });
+        return { ...body, id };
+      }
+      const res = await apiFetch('/api/reports', {
+        method: 'POST',
+        body: JSON.stringify(body)
+      });
+      return await res.json();
+    } catch (err) {
+      triggerMockMode();
+      const list = getLocalData('gupify_mock_reports', []);
+      const newRep = {
+        id: 'rep-' + Math.random().toString(36).substring(2, 9),
+        ...body,
+        createdAt: new Date().toISOString()
+      };
+      list.push(newRep);
+      setLocalData('gupify_mock_reports', list);
+      return newRep;
+    }
+  },
+
+  regenerate: async (id: string) => {
+    try {
+      const res = await apiFetch(`/api/reports/${id}/regenerate`, { method: 'POST' });
+      return await res.json();
+    } catch (err) {
+      triggerMockMode();
+      const list = getLocalData('gupify_mock_reports', []);
+      const index = list.findIndex((r: any) => r.id === id);
+      if (index !== -1) {
+        list[index].summary = `[Regerado] ${list[index].summary}`;
+        setLocalData('gupify_mock_reports', list);
+        return list[index];
+      }
+      throw new Error('Não encontrado');
+    }
+  },
+
+  remove: async (id: string) => {
+    try {
+      const res = await apiFetch(`/api/reports/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
+      return { success: true };
+    } catch (err) {
+      triggerMockMode();
+      let list = getLocalData('gupify_mock_reports', []);
+      list = list.filter((r: any) => r.id !== id);
+      setLocalData('gupify_mock_reports', list);
+      return { success: true };
+    }
+  }
+};

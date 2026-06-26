@@ -291,6 +291,7 @@ export default function Report() {
             summary={editedSummary}
             onChange={setEditedSummary}
             readOnly={saving || regenerating}
+            aiModel={report.aiModel || 'IA LLAMA-4 MAVERICK'}
           />
           <KeywordBadges keywords={report.keywords} />
           <QualityChecklist summary={editedSummary} jobContent={report.jobContent || ''} />

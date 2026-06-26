@@ -13,44 +13,32 @@ import Checklist from './pages/Checklist';
 
 function AppLayout() {
   return (
-    /*
-      Layout de duas colunas:
-        - Sidebar fixa à esquerda (apenas lg+, oculta na Landing)
-        - main ocupa o restante da largura
-      A Topbar mobile é renderizada pelo Navbar e fica sticky no topo.
-    */
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans antialiased text-slate-800">
-
-      {/* Topbar mobile (hidden em lg) */}
+      {/* Topbar mobile (oculta no Desktop lg+) */}
       <Navbar />
 
       {/* Corpo: sidebar + conteúdo */}
       <div className="flex flex-1">
-
-        {/* Sidebar desktop (hidden em mobile) */}
+        {/* Sidebar desktop (oculta no Celular) */}
         <Sidebar />
 
-        {/* Main content */}
+        {/* Conteúdo Principal */}
         <main className="flex-1 min-w-0 overflow-auto">
           <Routes>
             <Route path="/" element={<Landing />} />
 
-            {/* Rotas protegidas (aguardam handshake de sessão) */}
             <Route element={<SessionGuard />}>
               <Route path="/dashboard"      element={<Dashboard />} />
               <Route path="/generate"       element={<Generate />}  />
               <Route path="/reports/:id"    element={<Report />}    />
             </Route>
 
-            {/* Recursos informativos estáticos */}
             <Route path="/guia"      element={<Guia />}      />
             <Route path="/checklist" element={<Checklist />} />
 
-            {/* Catch-all */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
-
       </div>
     </div>
   );
