@@ -28,7 +28,6 @@ function GeneratingOverlay() {
   const [dots, setDots] = useState('');
   const counterRef = useRef(0);
 
-  // Anima os "..."
   useEffect(() => {
     const id = setInterval(() => {
       setDots(d => d.length >= 3 ? '' : d + '.');
@@ -36,18 +35,17 @@ function GeneratingOverlay() {
     return () => clearInterval(id);
   }, []);
 
-  // Adiciona palavras flutuantes aleatoriamente
   useEffect(() => {
     const add = () => {
       const word = FLOATING_KEYWORDS[Math.floor(Math.random() * FLOATING_KEYWORDS.length)];
       const id   = counterRef.current++;
       setVisibleWords(prev => [
-        ...prev.slice(-14), // máximo 15 palavras na tela
+        ...prev.slice(-14),
         {
           id,
           word,
-          x: 5 + Math.random() * 90,   // % horizontal
-          y: 5 + Math.random() * 90,   // % vertical
+          x: 5 + Math.random() * 90,
+          y: 5 + Math.random() * 90,
           delay: 0,
           size: Math.random() > 0.6 ? 13 : 11,
         },
@@ -62,7 +60,6 @@ function GeneratingOverlay() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-50/90 backdrop-blur-sm">
 
-      {/* Palavras flutuantes no fundo */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
         {visibleWords.map(w => (
           <span
@@ -80,10 +77,8 @@ function GeneratingOverlay() {
         ))}
       </div>
 
-      {/* Card central */}
       <div className="relative z-10 flex flex-col items-center text-center max-w-sm px-8 py-10 bg-white rounded-2xl shadow-xl border border-slate-100">
 
-        {/* Ícone animado */}
         <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center mb-6">
           <Sparkles className="w-8 h-8 text-indigo-500 animate-pulse" />
         </div>
@@ -97,7 +92,6 @@ function GeneratingOverlay() {
           para o algoritmo da Gupy.
         </p>
 
-        {/* Barra indeterminada */}
         <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
           <div className="h-full bg-indigo-500 rounded-full animate-indeterminate" />
         </div>
@@ -110,9 +104,8 @@ function GeneratingOverlay() {
   );
 }
 
-/* Reutiliza a mesma lógica de score do QualityChecklist */
-const CLICHES     = ['proativo','dedicado','fora da caixa','perfeccionista','apaixonado','motivado'];
-const ACTION_VERBS = ['desenvolvi','implementei','criei','liderei','otimizei','gerenciei','estruturei','coordenei','construí'];
+const CLICHES      = ['proativo', 'dedicado', 'fora da caixa', 'perfeccionista', 'apaixonado', 'motivado'];
+const ACTION_VERBS = ['desenvolvi', 'implementei', 'criei', 'liderei', 'otimizei', 'gerenciei', 'estruturei', 'coordenei', 'construí'];
 
 function computeScore(summary: string, jobContent: string): number {
   if (!summary || summary.length < 10) return 0;
@@ -125,12 +118,12 @@ function computeScore(summary: string, jobContent: string): number {
   if (summary.length >= 800 && summary.length <= 1400) score += 25;
   else if (summary.length >= 500) score += 12;
 
-  if (ACTION_VERBS.some((v) => ns.includes(norm(v)))) score += 25;
-  if (!CLICHES.some((c) => ns.includes(norm(c)))) score += 25;
+  if (ACTION_VERBS.some(v => ns.includes(norm(v)))) score += 25;
+  if (!CLICHES.some(c => ns.includes(norm(c)))) score += 25;
 
   if (jobContent.length > 10) {
-    const sw   = new Set(ns.split(/\s+/).filter((w) => w.length > 3));
-    const hits = nj.split(/\s+/).filter((w) => w.length > 3 && sw.has(w)).length;
+    const sw   = new Set(ns.split(/\s+/).filter(w => w.length > 3));
+    const hits = nj.split(/\s+/).filter(w => w.length > 3 && sw.has(w)).length;
     if (hits >= 5) score += 25;
     else if (hits >= 2) score += 15;
   } else {
@@ -139,14 +132,6 @@ function computeScore(summary: string, jobContent: string): number {
 
   return Math.min(score, 100);
 }
-
-const GENERATION_STEPS = [
-  'Extraindo perfil técnico do currículo...',
-  'Mapeando palavras-chave de maior peso da vaga...',
-  'Calculando similaridade semântica (cosseno)...',
-  'Formatando no padrão exato da Gupy...',
-  'Validando score ATS e qualidade do texto...',
-];
 
 export default function Generate() {
   const navigate = useNavigate();
@@ -221,18 +206,13 @@ export default function Generate() {
       setSaving(true);
       setError(null);
 
-      const saved = await reportsApi.create({
-        cvId:       generatedResult.cvId,
-        cvName:     generatedResult.cvName || selectedCv?.name,
-        jobTitle:   jobTitle.trim(),
-        jobContent: jobContent.trim(),
-        summary:    editedSummary,
-        keywords:   generatedResult.keywords,
-        score:      liveScore,
-      });
+      // O relatório já foi criado pelo backend durante o generate.run (POST /api/generate).
+      // Aqui só persistimos o summary editado manualmente via PUT /api/reports/:id.
+      const reportId = generatedResult.reportId || generatedResult.id;
+      await reportsApi.update(reportId, { summary: editedSummary });
 
       setSuccess(true);
-      setTimeout(() => navigate(`/reports/${saved.id}`), 900);
+      setTimeout(() => navigate(`/reports/${reportId}`), 900);
     } catch {
       setError('Erro ao salvar o relatório. Tente novamente.');
     } finally {
@@ -250,7 +230,6 @@ export default function Generate() {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 animate-fade-in">
 
-        {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <button
             onClick={() => { setGeneratedResult(null); setEditedSummary(''); }}
@@ -266,7 +245,6 @@ export default function Generate() {
           <ScoreRing score={liveScore} size={64} stroke={6} />
         </div>
 
-        {/* Success */}
         {success && (
           <div className="mb-5 flex items-center gap-2.5 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-700">
             <CheckCircle className="w-4 h-4 shrink-0" />
@@ -283,7 +261,6 @@ export default function Generate() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-          {/* Left: editor + keywords + checklist */}
           <div className="lg:col-span-2 space-y-4">
             <SummaryResult
               summary={editedSummary}
@@ -294,7 +271,6 @@ export default function Generate() {
             <QualityChecklist summary={editedSummary} jobContent={jobContent} />
           </div>
 
-          {/* Right: actions */}
           <div className="space-y-4">
             <div className="card bg-white border border-slate-100 rounded-xl p-4">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">
@@ -361,13 +337,11 @@ export default function Generate() {
 
       <form onSubmit={handleGenerate} className="space-y-5">
 
-        {/* Step 1: CV */}
         <CvUploader
           selectedCvId={selectedCv?.id ?? null}
           onSelectCv={setSelectedCv}
         />
 
-        {/* Step 2: Job */}
         <div className="card bg-white border border-slate-100 rounded-xl p-5">
           <h2 className="flex items-center gap-2 text-[13px] font-bold text-slate-900 mb-4">
             <Briefcase className="w-4 h-4 text-indigo-500" />
@@ -416,7 +390,6 @@ export default function Generate() {
           </div>
         </div>
 
-        {/* CTA */}
         <button
           type="submit"
           disabled={generating}

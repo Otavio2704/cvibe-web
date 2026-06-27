@@ -6,7 +6,6 @@ const API_BASE_URL = (import.meta as any).env.VITE_API_BASE_URL || 'https://gupi
 
 let useMock = false;
 let onMockStateChange: ((val: boolean) => void) | null = null;
-let lastReportId: string | null = null;
 
 // Guarda a Promise de inicialização de sessão para que nenhuma chamada
 // autenticada seja disparada antes de o cookie estar disponível.
@@ -26,13 +25,8 @@ const triggerMockMode = () => {
   }
 };
 
-// Verifica se a resposta indica problema de autenticação/autorização.
-// 401 = sem sessão, 403 = sessão inválida ou expirada.
-const isAuthError = (status: number) => status === 401 || status === 403;
-
 const apiFetch = async (path: string, options: RequestInit = {}) => {
   // Garante que a sessão foi inicializada antes de qualquer chamada autenticada.
-  // Rotas públicas (ex: POST /api/session) não entram nessa fila.
   const isPublicRoute = path === '/api/session' && (!options.method || options.method === 'POST');
   if (!isPublicRoute && sessionInitPromise) {
     await sessionInitPromise;
@@ -44,12 +38,29 @@ const apiFetch = async (path: string, options: RequestInit = {}) => {
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
-        ...options.headers
-      }
+        ...options.headers,
+      },
     });
 
-    // Erros de autenticação ativam o mock — a sessão não está válida.
-    if (isAuthError(response.status)) {
+    // 401/403: tenta renovar a sessão uma vez antes de ativar o mock.
+    // Evita que uma sessão expirada derrube o app inteiro desnecessariamente.
+    if (response.status === 401 || response.status === 403) {
+      if (!isPublicRoute) {
+        try {
+          await session.init();
+          const retry = await fetch(`${API_BASE_URL}${path}`, {
+            ...options,
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              ...options.headers,
+            },
+          });
+          if (retry.ok) return retry;
+        } catch {
+          // retry falhou — cai no mock abaixo
+        }
+      }
       triggerMockMode();
       throw new Error(`Auth error: ${response.status}`);
     }
@@ -67,6 +78,7 @@ const apiFetch = async (path: string, options: RequestInit = {}) => {
 };
 
 // --- SIMULATION DATABASE (localStorage) ---
+
 const getLocalData = (key: string, defaultValue: any) => {
   const data = localStorage.getItem(key);
   return data ? JSON.parse(data) : defaultValue;
@@ -83,11 +95,10 @@ const initMockDB = () => {
         id: 'cv-1',
         name: 'Curriculo_Frontend_React.pdf',
         content: 'Desenvolvedor Frontend com 3 anos de experiência em React, Tailwind CSS e TypeScript.',
-        uploadedAt: new Date(Date.now() - 3600000 * 24 * 3).toISOString()
-      }
+        uploadedAt: new Date(Date.now() - 3600000 * 24 * 3).toISOString(),
+      },
     ]);
   }
-
   if (!localStorage.getItem('gupify_mock_reports')) {
     setLocalData('gupify_mock_reports', []);
   }
@@ -97,10 +108,13 @@ initMockDB();
 
 const simulateAIGeneration = (cvText: string, jobTitle: string, jobContent: string) => {
   const sampleKeywords = ['React', 'TypeScript', 'Node.js', 'Tailwind CSS', 'Git', 'API REST', 'Scrum', 'SQL', 'Docker', 'Spring Boot', 'Java'];
-  const words = (jobTitle + ' ' + jobContent).toLowerCase().replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, '').split(/\s+/);
+  const words = (jobTitle + ' ' + jobContent)
+    .toLowerCase()
+    .replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, '')
+    .split(/\s+/);
 
-  const matchedKeywords = sampleKeywords.filter(kw =>
-    words.includes(kw.toLowerCase()) || jobTitle.toLowerCase().includes(kw.toLowerCase())
+  const matchedKeywords = sampleKeywords.filter(
+    kw => words.includes(kw.toLowerCase()) || jobTitle.toLowerCase().includes(kw.toLowerCase()),
   );
 
   while (matchedKeywords.length < 3) {
@@ -119,13 +133,12 @@ const simulateAIGeneration = (cvText: string, jobTitle: string, jobContent: stri
 
 export const session = {
   init: async () => {
-    // Registra a Promise para que outras chamadas possam aguardá-la.
     sessionInitPromise = (async () => {
       try {
         const res = await fetch(`${API_BASE_URL}/api/session`, {
           method: 'POST',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 'Content-Type': 'application/json' },
         });
         return await res.json();
       } catch (err) {
@@ -155,7 +168,7 @@ export const session = {
       triggerMockMode();
       return { success: true };
     }
-  }
+  },
 };
 
 export const cv = {
@@ -166,14 +179,14 @@ export const cv = {
       const res = await fetch(`${API_BASE_URL}/api/cv/upload`, {
         method: 'POST',
         credentials: 'include',
-        body: formData
+        body: formData,
       });
       if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
       const data = await res.json();
       return {
         ...data,
         name: data.fileName || data.name,
-        uploadedAt: data.createdAt || data.uploadedAt
+        uploadedAt: data.createdAt || data.uploadedAt,
       };
     } catch (err) {
       triggerMockMode();
@@ -183,7 +196,7 @@ export const cv = {
         id: 'cv-' + Math.random().toString(36).substring(2, 9),
         name: fileName,
         content: `Conteúdo simulado extraído de ${fileName}.`,
-        uploadedAt: new Date().toISOString()
+        uploadedAt: new Date().toISOString(),
       };
       const cvs = getLocalData('gupify_mock_cvs', []);
       cvs.push(newCv);
@@ -200,7 +213,7 @@ export const cv = {
       return (list || []).map((item: any) => ({
         ...item,
         name: item.fileName || item.name,
-        uploadedAt: item.createdAt || item.uploadedAt
+        uploadedAt: item.createdAt || item.uploadedAt,
       }));
     } catch (err) {
       triggerMockMode();
@@ -220,7 +233,7 @@ export const cv = {
       setLocalData('gupify_mock_cvs', cvs);
       return { success: true };
     }
-  }
+  },
 };
 
 export const generate = {
@@ -228,16 +241,21 @@ export const generate = {
     try {
       const res = await apiFetch('/api/generate', {
         method: 'POST',
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
       });
+      if (!res.ok) throw new Error(`Generate failed: ${res.status}`);
       const data = await res.json();
-      lastReportId = data.reportId;
+      // Backend retorna: { reportId, summary, keywords, fromCache }
+      // Normalizamos para que o frontend sempre tenha reportId e id preenchidos.
       return {
-        ...data,
-        id: data.reportId,
-        cvId: body.cvId,
-        jobTitle: body.jobTitle,
-        jobContent: body.jobContent
+        reportId:   data.reportId,
+        id:         data.reportId,
+        summary:    data.summary,
+        keywords:   data.keywords,
+        fromCache:  data.fromCache,
+        cvId:       body.cvId,
+        jobTitle:   body.jobTitle,
+        jobContent: body.jobContent,
       };
     } catch (err) {
       triggerMockMode();
@@ -245,17 +263,20 @@ export const generate = {
       const selectedCv = cvs.find((c: any) => c.id === body.cvId) || { content: 'vazio', name: 'Curriculo.pdf' };
       const aiResult = simulateAIGeneration(selectedCv.content, body.jobTitle, body.jobContent);
       await new Promise(resolve => setTimeout(resolve, 1500));
+      const mockId = 'rep-' + Math.random().toString(36).substring(2, 9);
       return {
-        success: true,
-        summary: aiResult.summary,
-        keywords: aiResult.keywords,
-        cvId: body.cvId,
-        cvName: selectedCv.name,
-        jobTitle: body.jobTitle,
-        jobContent: body.jobContent
+        reportId:   mockId,
+        id:         mockId,
+        summary:    aiResult.summary,
+        keywords:   aiResult.keywords,
+        fromCache:  false,
+        cvId:       body.cvId,
+        cvName:     selectedCv.name,
+        jobTitle:   body.jobTitle,
+        jobContent: body.jobContent,
       };
     }
-  }
+  },
 };
 
 export const reports = {
@@ -265,9 +286,9 @@ export const reports = {
       const list = await res.json();
       return (list || []).map((r: any) => ({
         ...r,
-        jobTitle: r.jobDescriptionTitle || r.jobTitle || 'Vaga Alvo',
+        jobTitle:   r.jobDescriptionTitle   || r.jobTitle   || 'Vaga Alvo',
         jobContent: r.jobDescriptionContent || r.jobContent || '',
-        cvName: r.cvName || 'Currículo Selecionado'
+        cvName:     r.cvName                               || 'Currículo Selecionado',
       }));
     } catch (err) {
       triggerMockMode();
@@ -281,9 +302,9 @@ export const reports = {
       const r = await res.json();
       return {
         ...r,
-        jobTitle: r.jobDescriptionTitle || r.jobTitle || 'Vaga Alvo',
+        jobTitle:   r.jobDescriptionTitle   || r.jobTitle   || 'Vaga Alvo',
         jobContent: r.jobDescriptionContent || r.jobContent || '',
-        cvName: r.cvName || 'Currículo Selecionado'
+        cvName:     r.cvName                               || 'Currículo Selecionado',
       };
     } catch (err) {
       triggerMockMode();
@@ -294,11 +315,14 @@ export const reports = {
     }
   },
 
+  // Atualiza o summary editado manualmente pelo usuário após a geração.
+  // O relatório já é criado pelo backend durante o POST /api/generate,
+  // por isso não existe mais um reports.create — só update.
   update: async (id: string, body: { summary: string }) => {
     try {
       const res = await apiFetch(`/api/reports/${id}`, {
         method: 'PUT',
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
       });
       return await res.json();
     } catch (err) {
@@ -311,36 +335,6 @@ export const reports = {
         return list[index];
       }
       throw new Error('Não encontrado');
-    }
-  },
-
-  create: async (body: { cvId: string; cvName?: string; jobTitle: string; jobContent: string; summary: string; keywords?: string[]; score?: number }) => {
-    try {
-      if (lastReportId) {
-        const id = lastReportId;
-        lastReportId = null;
-        await apiFetch(`/api/reports/${id}`, {
-          method: 'PUT',
-          body: JSON.stringify({ summary: body.summary })
-        });
-        return { ...body, id };
-      }
-      const res = await apiFetch('/api/reports', {
-        method: 'POST',
-        body: JSON.stringify(body)
-      });
-      return await res.json();
-    } catch (err) {
-      triggerMockMode();
-      const list = getLocalData('gupify_mock_reports', []);
-      const newRep = {
-        id: 'rep-' + Math.random().toString(36).substring(2, 9),
-        ...body,
-        createdAt: new Date().toISOString()
-      };
-      list.push(newRep);
-      setLocalData('gupify_mock_reports', list);
-      return newRep;
     }
   },
 
@@ -373,5 +367,5 @@ export const reports = {
       setLocalData('gupify_mock_reports', list);
       return { success: true };
     }
-  }
+  },
 };
