@@ -1,21 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { reports as reportsApi, cv as cvApi } from '../services/api';
 import { useSession } from '../context/SessionContext';
-import { 
-  LayoutDashboard, 
-  PlusCircle, 
-  FileText, 
-  ChevronRight, 
-  Trash2, 
-  Calendar, 
-  FileSignature, 
+import { computeAtsScore, formatReportDate, getReportUpdatedAt } from '../utils/report';
+import {
+  LayoutDashboard,
+  PlusCircle,
+  FileText,
+  ChevronRight,
+  Trash2,
+  Calendar,
+  FileSignature,
   AlertCircle,
   Clock,
   Sparkles,
   Loader2,
-  Info
+  Info,
+  ArrowDownUp,
+  SlidersHorizontal,
 } from 'lucide-react';
+
+type SortOption = 'recent' | 'oldest' | 'highestScore' | 'lowestScore' | 'jobTitle';
+type FilterOption = 'all' | 'withVersions' | 'highScore';
 
 export default function Dashboard() {
   const { isMockMode } = useSession();
@@ -24,22 +30,24 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<SortOption>('recent');
+  const [filterBy, setFilterBy] = useState<FilterOption>('all');
 
   const loadDashboardData = async () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const [reportsData, cvsData] = await Promise.all([
         reportsApi.list(),
-        cvApi.list()
+        cvApi.list(),
       ]);
-      
+
       setReportsList(reportsData || []);
       setCvsCount(cvsData ? cvsData.length : 0);
     } catch (err) {
-      console.error("Error loading dashboard data:", err);
-      setError("Ocorreu um erro ao carregar seus relatórios. Certifique-se de que a sessão está ativa.");
+      console.error('Error loading dashboard data:', err);
+      setError('Ocorreu um erro ao carregar seus relatórios. Certifique-se de que a sessão está ativa.');
     } finally {
       setLoading(false);
     }
@@ -50,26 +58,57 @@ export default function Dashboard() {
   }, []);
 
   const handleDeleteReport = async (e: React.MouseEvent, id: string) => {
-    e.preventDefault(); // Prevent navigation if clicking card
-    if (!confirm("Tem certeza que deseja excluir este relatório permanentemente?")) {
+    e.preventDefault();
+    if (!confirm('Tem certeza que deseja excluir este relatório permanentemente?')) {
       return;
     }
 
     try {
       setDeleteLoading(id);
       await reportsApi.remove(id);
-      setReportsList(prev => prev.filter(r => r.id !== id));
+      setReportsList((prev) => prev.filter((r) => r.id !== id));
     } catch (err) {
-      console.error("Error deleting report:", err);
-      alert("Não foi possível excluir o relatório selecionado.");
+      console.error('Error deleting report:', err);
+      alert('Não foi possível excluir o relatório selecionado.');
     } finally {
       setDeleteLoading(null);
     }
   };
 
+  const enhancedReports = useMemo(
+    () =>
+      reportsList.map((report) => ({
+        ...report,
+        atsScore: computeAtsScore(report.summary || '', report.jobContent || ''),
+        referenceDate: getReportUpdatedAt(report),
+      })),
+    [reportsList],
+  );
+
+  const visibleReports = useMemo(() => {
+    const filtered = enhancedReports.filter((report) => {
+      if (filterBy === 'withVersions') return (report.versions?.length || 0) > 1;
+      if (filterBy === 'highScore') return report.atsScore >= 80;
+      return true;
+    });
+
+    const sorted = [...filtered].sort((a, b) => {
+      if (sortBy === 'highestScore') return b.atsScore - a.atsScore;
+      if (sortBy === 'lowestScore') return a.atsScore - b.atsScore;
+      if (sortBy === 'jobTitle') return (a.jobTitle || '').localeCompare(b.jobTitle || '', 'pt-BR');
+
+      const dateA = a.referenceDate ? new Date(a.referenceDate).getTime() : 0;
+      const dateB = b.referenceDate ? new Date(b.referenceDate).getTime() : 0;
+
+      if (sortBy === 'oldest') return dateA - dateB;
+      return dateB - dateA;
+    });
+
+    return sorted;
+  }, [enhancedReports, filterBy, sortBy]);
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-gray-900 flex items-center gap-2">
@@ -90,7 +129,6 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      {/* Connection Mode Warning */}
       {isMockMode && (
         <div className="mb-6 p-3 bg-amber-50 border border-amber-200/40 text-amber-800 rounded-2xl text-xs sm:text-sm flex items-start gap-2.5">
           <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
@@ -101,7 +139,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Quick Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-8">
         <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
           <span className="text-xs font-semibold text-gray-400 uppercase block">Currículos Enviados</span>
@@ -146,26 +183,65 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Reports List Section */}
       <div className="space-y-4">
-        <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-          <FileSignature className="w-5 h-5 text-gray-500" />
-          Histórico de Relatórios
-        </h2>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+            <FileSignature className="w-5 h-5 text-gray-500" />
+            Histórico de Relatórios
+          </h2>
+
+          {!loading && reportsList.length > 0 && (
+            <div className="flex flex-col sm:flex-row gap-2">
+              <label className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs text-gray-600 shadow-sm">
+                <ArrowDownUp className="w-3.5 h-3.5 text-gray-400" />
+                <span className="font-semibold">Ordenar</span>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as SortOption)}
+                  className="bg-transparent text-xs font-semibold text-gray-700 outline-none"
+                >
+                  <option value="recent">Mais recentes</option>
+                  <option value="oldest">Mais antigos</option>
+                  <option value="highestScore">Maior pontuação ATS</option>
+                  <option value="lowestScore">Menor pontuação ATS</option>
+                  <option value="jobTitle">Nome da vaga</option>
+                </select>
+              </label>
+
+              <label className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs text-gray-600 shadow-sm">
+                <SlidersHorizontal className="w-3.5 h-3.5 text-gray-400" />
+                <span className="font-semibold">Filtrar</span>
+                <select
+                  value={filterBy}
+                  onChange={(e) => setFilterBy(e.target.value as FilterOption)}
+                  className="bg-transparent text-xs font-semibold text-gray-700 outline-none"
+                >
+                  <option value="all">Todos</option>
+                  <option value="withVersions">Com versões</option>
+                  <option value="highScore">ATS 80+ </option>
+                </select>
+              </label>
+            </div>
+          )}
+        </div>
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border border-gray-100 shadow-sm">
             <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mb-3" />
             <span className="text-sm text-gray-500 font-medium">Buscando seus relatórios salvos...</span>
           </div>
-        ) : reportsList.length === 0 ? (
+        ) : visibleReports.length === 0 ? (
           <div className="flex flex-col items-center justify-center text-center p-10 sm:p-16 bg-white rounded-2xl border border-dashed border-gray-200 shadow-sm">
             <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mb-4">
               <FileText className="w-8 h-8" />
             </div>
-            <h3 className="text-lg font-bold text-gray-900">Nenhum relatório gerado</h3>
+            <h3 className="text-lg font-bold text-gray-900">
+              {reportsList.length === 0 ? 'Nenhum relatório gerado' : 'Nenhum relatório encontrado com esse filtro'}
+            </h3>
             <p className="text-sm text-gray-500 max-w-md mt-1.5 mb-6">
-              Você ainda não tem relatórios de otimização de currículo salvos nesta sessão. Cole os dados da vaga e comece o ranqueamento automatizado.
+              {reportsList.length === 0
+                ? 'Você ainda não tem relatórios de otimização de currículo salvos nesta sessão. Cole os dados da vaga e comece o ranqueamento automatizado.'
+                : 'Tente trocar a ordenação ou o filtro para visualizar outros relatórios desta sessão.'}
             </p>
             <Link
               to="/generate"
@@ -177,7 +253,7 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4">
-            {reportsList.map((report) => (
+            {visibleReports.map((report) => (
               <Link
                 key={report.id}
                 to={`/reports/${report.id}`}
@@ -191,13 +267,10 @@ export default function Dashboard() {
                       </span>
                       <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
                         <Calendar className="w-3 h-3" />
-                        {report.createdAt ? new Date(report.createdAt).toLocaleDateString('pt-BR', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        }) : 'Data recente'}
+                        {formatReportDate(report.referenceDate)}
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                        ATS {report.atsScore}%
                       </span>
                     </div>
 
@@ -210,14 +283,12 @@ export default function Dashboard() {
                       <span className="truncate max-w-xs">{report.cvName || 'Currículo da Sessão'}</span>
                     </p>
 
-                    {/* Summary text snippet */}
                     {report.summary && (
                       <p className="text-sm text-gray-600 line-clamp-2 mt-2 bg-gray-50/50 p-2.5 rounded-xl border border-gray-100 leading-relaxed font-normal">
                         {report.summary}
                       </p>
                     )}
-                    
-                    {/* Keyword previews */}
+
                     {report.keywords && report.keywords.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 pt-2">
                         {report.keywords.map((kw: string, i: number) => (
@@ -230,8 +301,7 @@ export default function Dashboard() {
                   </div>
 
                   <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-3 shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-gray-100">
-                    {/* Number of versions history */}
-                    {report.versions && report.versions.length > 1 && (
+                    {(report.versions?.length || 0) > 1 && (
                       <span className="text-[10px] font-medium text-gray-400 flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-md">
                         <Clock className="w-3 h-3" />
                         {report.versions.length} versões
@@ -267,3 +337,4 @@ export default function Dashboard() {
     </div>
   );
 }
+

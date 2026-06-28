@@ -1,102 +1,178 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSession } from '../context/SessionContext';
-import { 
-  Sparkles, 
-  ArrowRight, 
-  CheckCircle, 
-  ShieldAlert, 
-  Loader2
+import {
+  Sparkles,
+  ArrowRight,
+  CheckCircle,
+  ShieldAlert,
+  Loader2,
 } from 'lucide-react';
+
+type DemoProfile = {
+  fileName: string;
+  snippet: string;
+};
+
+const DEMO_PROFILES: DemoProfile[] = [
+  {
+    fileName: 'Curriculo_Analista_Financeiro_Pleno.pdf',
+    snippet:
+      'Analista financeiro com experiência em orçamento, fluxo de caixa, DRE e indicadores de desempenho. Atuei na consolidação de relatórios gerenciais, automação de rotinas em Excel e Power BI e suporte à tomada de decisão com foco em redução de custos e previsibilidade financeira.',
+  },
+  {
+    fileName: 'CV_Designer_UX_UI_Senior.pdf',
+    snippet:
+      'Designer UX/UI com atuação em pesquisa com usuários, prototipação em Figma, testes de usabilidade e construção de interfaces orientadas à conversão. Liderei melhorias em jornadas digitais e colaborei com produto e desenvolvimento para evoluir experiências centradas no usuário.',
+  },
+  {
+    fileName: 'Perfil_Analista_de_RH_BP.docx',
+    snippet:
+      'Profissional de RH com experiência em recrutamento, business partnering, treinamento e acompanhamento de indicadores de pessoas. Estruturei processos de atração e seleção, onboarding e ações de desenvolvimento organizacional alinhadas às metas do negócio.',
+  },
+  {
+    fileName: 'Curriculo_Enfermeira_Assistencial.pdf',
+    snippet:
+      'Enfermeira assistencial com vivência em acolhimento, administração de medicamentos, evolução de prontuários e suporte multidisciplinar ao paciente. Atuei com foco em segurança, humanização do atendimento e cumprimento rigoroso de protocolos clínicos.',
+  },
+  {
+    fileName: 'Candidato_Executivo_de_Vendas_B2B.pdf',
+    snippet:
+      'Executivo de vendas com histórico em prospecção consultiva, negociação, gestão de carteira e fechamento de contratos B2B. Desenvolvi estratégias comerciais, fortaleci relacionamento com clientes e contribui para expansão de receita com previsibilidade no funil.',
+  },
+  {
+    fileName: 'Curriculo_Coordenadora_de_Marketing.pdf',
+    snippet:
+      'Profissional de marketing com experiência em campanhas multicanais, planejamento estratégico, branding e análise de performance. Coordenei ações com foco em geração de demanda, posicionamento de marca e otimização contínua dos resultados.',
+  },
+  {
+    fileName: 'Perfil_Professor_de_Ingles_Online.pdf',
+    snippet:
+      'Professor de inglês com experiência em planejamento de aulas, acompanhamento de evolução, adaptação de conteúdo e desenvolvimento de fluência. Atuei com metodologia comunicativa e foco em engajamento, retenção e progresso consistente dos alunos.',
+  },
+  {
+    fileName: 'CV_Analista_de_Dados_Junior.pdf',
+    snippet:
+      'Analista de dados com prática em limpeza de bases, construção de dashboards, análise exploratória e acompanhamento de KPIs. Apoiei áreas de negócio com insights orientados por dados e organização de informações para tomada de decisão.',
+  },
+  {
+    fileName: 'Curriculo_Arquiteta_de_Interiores.pdf',
+    snippet:
+      'Arquiteta de interiores com experiência em briefing, detalhamento técnico, compatibilização de projetos e acompanhamento de obras. Desenvolvi soluções funcionais e estéticas alinhadas às necessidades do cliente, prazo e orçamento.',
+  },
+  {
+    fileName: 'Perfil_Coordenador_Logistica.pdf',
+    snippet:
+      'Coordenador de logística com atuação em controle de estoque, roteirização, gestão de transportes e acompanhamento de indicadores operacionais. Estruturei processos para melhorar nível de serviço, acuracidade e eficiência na cadeia de distribuição.',
+  },
+];
+
+function shuffleProfiles(list: DemoProfile[]) {
+  const cloned = [...list];
+  for (let i = cloned.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [cloned[i], cloned[j]] = [cloned[j], cloned[i]];
+  }
+  return cloned;
+}
 
 export default function Landing() {
   const navigate = useNavigate();
   const { sessionReady } = useSession();
 
-  // Typewriter: usa ref pro index pra não capturar valor stale no closure
   const typedRef = useRef<HTMLSpanElement>(null);
-  const indexRef = useRef(0);
-  const phaseRef = useRef<'typing' | 'waiting' | 'clearing'>('typing');
-  const fullSnippet = 'Desenvolvedor back-end com experiência em Java, Spring Boot e APIs RESTful. Atuei na construção de microsserviços escaláveis, integrações assíncronas com filas de mensagem e implementação de pipelines de CI/CD. Contribuí para a redução de latência em 40% em um sistema de alto volume...';
+  const [activeProfileIndex, setActiveProfileIndex] = useState(0);
+
+  const randomizedProfiles = useMemo(() => shuffleProfiles(DEMO_PROFILES), []);
+  const activeProfile = randomizedProfiles[activeProfileIndex];
 
   useEffect(() => {
     const el = typedRef.current;
-    if (!el) return;
+    if (!el || !activeProfile) return;
 
-    const tick = () => {
-      if (phaseRef.current === 'typing') {
-        indexRef.current++;
-        el.textContent = fullSnippet.slice(0, indexRef.current);
-        if (indexRef.current >= fullSnippet.length) {
-          phaseRef.current = 'waiting';
-        }
-      } else if (phaseRef.current === 'waiting') {
-        phaseRef.current = 'clearing';
-      } else {
-        indexRef.current = Math.max(0, indexRef.current - 4);
-        el.textContent = fullSnippet.slice(0, indexRef.current);
-        if (indexRef.current === 0) {
-          phaseRef.current = 'typing';
-        }
-      }
-    };
-
-    // Velocidades diferentes por fase
+    let charIndex = 0;
+    let phase: 'typing' | 'waiting' | 'clearing' = 'typing';
     let timeout: ReturnType<typeof setTimeout>;
+    let cancelled = false;
+
+    el.textContent = '';
+
     const schedule = () => {
+      if (cancelled) return;
+
       const delay =
-        phaseRef.current === 'typing'
-          ? 30
-          : phaseRef.current === 'waiting'
-          ? 8000
-          : 12;
+        phase === 'typing'
+          ? 18 + Math.floor(Math.random() * 28)
+          : phase === 'waiting'
+            ? 3000
+            : 10;
+
       timeout = setTimeout(() => {
-        tick();
+        if (!typedRef.current) return;
+
+        if (phase === 'typing') {
+          charIndex += 1;
+          typedRef.current.textContent = activeProfile.snippet.slice(0, charIndex);
+
+          if (charIndex >= activeProfile.snippet.length) {
+            phase = 'waiting';
+          }
+        } else if (phase === 'waiting') {
+          phase = 'clearing';
+        } else {
+          charIndex = Math.max(0, charIndex - 5);
+          typedRef.current.textContent = activeProfile.snippet.slice(0, charIndex);
+
+          if (charIndex === 0) {
+            setActiveProfileIndex((prev) => (prev + 1) % randomizedProfiles.length);
+            return;
+          }
+        }
+
         schedule();
       }, delay);
     };
-    schedule();
-    return () => clearTimeout(timeout);
-  }, []);
 
-  // Comprimento atual pra exibir no contador
+    schedule();
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, [activeProfile, randomizedProfiles.length]);
+
   const handleStart = () => navigate('/generate');
 
   return (
-    <div className="heroBackground min-h-screen relative overflow-hidden flex flex-col justify-between">
-      
-      {/* Hero Section */}
-      <div className="relative pt-12 pb-20 sm:pt-16 sm:pb-24 lg:pt-28 lg:pb-32">
+    <div className="heroBackground min-h-screen relative overflow-x-hidden flex flex-col justify-between">
+      <div className="relative pt-5 pb-10 sm:pt-8 sm:pb-14 lg:pt-12 lg:pb-16 xl:pt-14 xl:pb-18">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="lg:grid lg:grid-cols-12 lg:gap-12 items-center">
-            
-            {/* Text Column */}
-            <div className="sm:text-left md:max-w-2xl md:mx-auto lg:col-span-7 lg:text-left lg:pl-4">
-              
-              <div className="inline-flex items-center space-x-2 bg-indigo-50 border border-indigo-100 text-indigo-700 px-3.5 py-1.5 rounded-full text-[10px] font-bold tracking-widest uppercase mb-6">
+          <div className="lg:grid lg:grid-cols-12 lg:gap-10 xl:gap-12 items-center">
+            <div className="sm:text-left md:max-w-2xl md:mx-auto lg:col-span-7 lg:text-left lg:pl-2 xl:pl-4">
+              <div className="inline-flex items-center space-x-2 bg-indigo-50 border border-indigo-100 text-indigo-700 px-3.5 py-1.5 rounded-full text-[10px] font-bold tracking-widest uppercase mb-4 lg:mb-5">
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>Otimização Estratégica · ATS Engine</span>
               </div>
-              
-              <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-gray-900 tracking-tight leading-none text-left lg:ml-[clamp(0px,4vw,60px)]">
-                Não seja descartado pelo 
-                <span className="block text-3xl sm:text-5xl lg:text-6xl font-normal text-gray-500 tracking-normal mt-1">
+
+              <h1 className="text-4xl sm:text-6xl lg:text-[4rem] xl:text-[4.5rem] font-black text-gray-900 tracking-tight leading-[0.92] text-left lg:ml-[clamp(0px,3vw,44px)]">
+                Não seja descartado pelo
+                <span className="block text-3xl sm:text-5xl lg:text-[3.15rem] xl:text-[3.55rem] font-normal text-gray-500 tracking-normal mt-1.5 leading-tight">
                   Algoritmo da Gupy.
                 </span>
-                <span className="block mt-2 text-5xl sm:text-7xl lg:text-8xl bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent tracking-tighter font-extrabold leading-none">
+                <span className="block mt-2 text-5xl sm:text-7xl lg:text-[4.75rem] xl:text-[5.4rem] bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent tracking-tighter font-extrabold leading-none">
                   Otimizar.
                 </span>
               </h1>
-              
-              <p className="mt-6 text-sm sm:text-base text-gray-600 leading-relaxed max-w-lg lg:ml-[clamp(0px,4vw,60px)] font-normal">
+
+              <p className="mt-4 text-sm sm:text-base text-gray-600 leading-relaxed max-w-lg lg:ml-[clamp(0px,3vw,44px)] font-normal">
                 A IA da Gupy filtra a maioria dos candidatos automaticamente. Nossa ferramenta reestrutura seu perfil usando inteligência semântica no limite ideal de 1.500 caracteres.
               </p>
 
-              <p className="mt-3 text-xs text-indigo-700 italic font-light lg:ml-[clamp(0px,4vw,60px)]">
+              <p className="mt-2 text-xs text-indigo-700 italic font-light lg:ml-[clamp(0px,3vw,44px)]">
                 * Desenvolvido para reverter o funil silencioso dos sistemas de triagem semântica.
               </p>
 
-              <div className="mt-8 sm:flex sm:justify-start gap-4 lg:ml-[clamp(0px,4vw,60px)]">
+              <div className="mt-6 sm:flex sm:justify-start gap-4 lg:ml-[clamp(0px,3vw,44px)]">
                 <button
                   onClick={handleStart}
                   disabled={!sessionReady}
@@ -123,19 +199,17 @@ export default function Landing() {
                 </button>
               </div>
 
-              <div className="mt-5 flex items-center text-[10px] tracking-wider uppercase font-bold text-gray-400 gap-1.5 lg:ml-[clamp(0px,4vw,60px)]">
+              <div className="mt-4 flex items-center text-[10px] tracking-wider uppercase font-bold text-gray-400 gap-1.5 lg:ml-[clamp(0px,3vw,44px)]">
                 <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
                 <span>Sessão temporária segura — nada é armazenado de forma permanente</span>
               </div>
             </div>
 
-            {/* Visual Column — CRT Terminal */}
-            <div className="mt-16 sm:mt-24 lg:mt-0 lg:col-span-5 relative">
+            <div className="mt-10 sm:mt-14 lg:mt-0 lg:col-span-5 relative">
               <div className="relative mx-auto w-full max-w-md lg:max-w-none">
-                
-                <div className="absolute -top-6 -left-6 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
-                <div className="absolute -bottom-8 -right-8 w-48 h-48 bg-violet-500/10 rounded-full blur-3xl pointer-events-none"></div>
-                
+                <div className="absolute -top-6 -left-6 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div className="absolute -bottom-8 -right-8 w-40 h-40 bg-violet-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
                 <div className="terminalCrt relative bg-gray-950 rounded-2xl border border-gray-800 shadow-2xl overflow-hidden">
                   <div className="bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center justify-between">
                     <div className="flex space-x-1.5">
@@ -149,9 +223,9 @@ export default function Landing() {
                   <div className="p-5 space-y-4 font-mono text-[11px] text-gray-300">
                     <div className="space-y-1">
                       <span className="text-[9px] uppercase font-bold text-indigo-500 tracking-wider">INPUT_RAW_CV</span>
-                      <div className="p-2 bg-gray-900 border border-gray-800 rounded-lg flex items-center justify-between">
-                        <span className="text-gray-400 truncate">Curriculo_Candidato.pdf</span>
-                        <span className="text-[9px] text-emerald-500 bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-900/30">PARSED</span>
+                      <div className="p-2 bg-gray-900 border border-gray-800 rounded-lg flex items-center justify-between gap-3">
+                        <span className="text-gray-400 truncate">{activeProfile.fileName}</span>
+                        <span className="text-[9px] text-emerald-500 bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-900/30 shrink-0">PARSED</span>
                       </div>
                     </div>
 
@@ -159,8 +233,8 @@ export default function Landing() {
                       <div className="flex justify-between items-center text-[9px] uppercase font-bold text-indigo-500 tracking-wider">
                         <span>OUTPUT_GUPY_OPTIMIZED</span>
                       </div>
-                      
-                      <div className="p-3 bg-black/80 border border-gray-800 rounded-xl leading-relaxed text-gray-300 min-h-[96px]">
+
+                      <div className="p-3 bg-black/80 border border-gray-800 rounded-xl leading-relaxed text-gray-300 min-h-[132px]">
                         <span ref={typedRef}></span>
                         <span className="cursorTerminal"></span>
                       </div>
@@ -180,21 +254,16 @@ export default function Landing() {
                 </div>
               </div>
             </div>
-
           </div>
         </div>
       </div>
 
-      {/* Divisória editorial */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-        <div className="editorialDivider">
-          <span className="editorialDividerLabel">
-            — para candidatos que jogam com estratégia —
-          </span>
+        <div className="sectionDivider">
+          <span className="sectionDividerLabel">Para candidatos que jogam com estratégia</span>
         </div>
       </div>
 
-      {/* Grid de problemas */}
       <div className="py-12 bg-white w-full">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-12">
@@ -208,7 +277,6 @@ export default function Landing() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-            
             <div className="gradientBorderCard-16 lg:col-span-7 p-8 shadow-sm flex flex-col justify-between relative overflow-hidden">
               <div className="absolute top-0 right-0 p-4 bg-rose-50 text-rose-600 rounded-bl-xl border-l border-b border-rose-100">
                 <ShieldAlert className="w-5 h-5" />
@@ -220,7 +288,7 @@ export default function Landing() {
                   O robô da Gupy compara a semântica da descrição do cargo com a do seu cadastro. Escrever de forma genérica impede que a IA identifique a aderência técnica da sua bagagem, resultando em exclusão imediata na primeira rodada de triagem.
                 </p>
               </div>
-              
+
               <div className="mt-8 pt-4 border-t border-gray-100 flex items-center justify-between text-xs font-semibold text-indigo-600">
                 <span>IMPACTO NO SCORE GUPY: CRÍTICO</span>
                 <span className="text-gray-400">01 / 03</span>
@@ -276,21 +344,16 @@ export default function Landing() {
                 </div>
               </div>
             </div>
-
           </div>
         </div>
       </div>
 
-      {/* Divisória editorial */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-        <div className="editorialDivider">
-          <span className="editorialDividerLabel">
-            — metodologia de escrita para triagem —
-          </span>
+        <div className="sectionDivider sectionDividerCentered">
+          <span className="sectionDividerLabel">Metodologia de escrita para triagem</span>
         </div>
       </div>
 
-      {/* How it works */}
       <div className="py-16 bg-gray-50/30 w-full">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
@@ -353,7 +416,6 @@ export default function Landing() {
         </div>
       </div>
 
-      {/* Footer */}
       <footer className="bg-gray-950 text-gray-400 py-12 border-t border-gray-900 w-full mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-6">
@@ -368,7 +430,7 @@ export default function Landing() {
                 Ferramenta educacional e otimizadora independente. Sem afiliação oficial com a Gupy Inc.
               </p>
             </div>
-            
+
             <div className="flex space-x-6 text-xs font-semibold">
               <a href="/guia" className="hover:text-white transition-colors">Guia de Sobrevivência</a>
               <a href="/checklist" className="hover:text-white transition-colors">Checklist do Candidato</a>
@@ -383,7 +445,7 @@ export default function Landing() {
           </div>
         </div>
       </footer>
-
     </div>
   );
 }
+

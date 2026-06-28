@@ -1,21 +1,20 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSession } from '../context/SessionContext';
-import { 
-  LayoutDashboard, 
-  Sparkles, 
-  BookOpen, 
-  CheckSquare, 
-  Menu, 
-  X, 
-  RefreshCw,
-  ArrowRight
+import {
+  LayoutDashboard,
+  Sparkles,
+  BookOpen,
+  CheckSquare,
+  Menu,
+  X,
+  ArrowRight,
+  House,
 } from 'lucide-react';
 
 export function Sidebar() {
-  const { isMockMode, endSession } = useSession();
+  const { isMockMode } = useSession();
   const location = useLocation();
-  const [resetting, setResetting] = useState(false);
 
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
@@ -29,88 +28,77 @@ export function Sidebar() {
     return location.pathname.startsWith(path);
   };
 
-  const handleResetSession = async () => {
-    if (confirm("Tem certeza que deseja encerrar a sessão atual? Isso limpará seus currículos e relatórios temporários do simulador e gerará uma nova sessão.")) {
-      setResetting(true);
-      await endSession();
-      setResetting(false);
-      window.location.href = '/';
-    }
-  };
-
   if (location.pathname === '/') return null;
 
   return (
-    <aside className="hidden lg:flex flex-col justify-between w-64 bg-white border-r border-slate-200/80 shrink-0 min-h-screen sticky top-0 p-6 z-40 animate-fade-in">
-      <div>
-        {/* Logo */}
-        <Link to="/dashboard" className="flex items-center space-x-2.5 mb-8 px-2">
-          <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-md shadow-indigo-200">
-            G
-          </div>
-          <span className="text-xl font-black tracking-tight bg-gradient-to-r from-indigo-600 to-indigo-900 bg-clip-text text-transparent">
-            Gupify<span className="text-slate-400 font-normal text-sm ml-0.5">Web</span>
-          </span>
-        </Link>
-
-        {/* Nav links */}
-        <nav className="space-y-1.5">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(item.path);
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                  active
-                    ? 'bg-indigo-50 text-indigo-700 shadow-sm shadow-indigo-100/50'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`}
-              >
-                <Icon className={`w-4 h-4 ${active ? 'text-indigo-600' : 'text-slate-400'}`} />
-                <span>{item.name}</span>
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
-
-      {/* Bottom section com Status e Reset */}
-      <div className="pt-6 border-t border-slate-100 space-y-4">
-        <div className="flex items-center justify-between px-1">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</span>
-          {isMockMode ? (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200/60 animate-pulse">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span>
-              Simulador
+    <aside className="hidden lg:flex w-72 shrink-0 flex-col border-r border-slate-200/80 bg-white sticky top-0 self-start h-screen overflow-y-auto">
+      <div className="flex min-h-full flex-col justify-between p-6">
+        <div>
+          <Link to="/dashboard" className="flex items-center space-x-2.5 mb-8 px-2">
+            <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-md shadow-indigo-200">
+              G
+            </div>
+            <span className="text-xl font-black tracking-tight bg-gradient-to-r from-indigo-600 to-indigo-900 bg-clip-text text-transparent">
+              Gupify<span className="text-slate-400 font-normal text-sm ml-0.5">Web</span>
             </span>
-          ) : (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
-              API Online
-            </span>
-          )}
+          </Link>
+
+          <nav className="space-y-1.5">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.path);
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                    active
+                      ? 'bg-indigo-50 text-indigo-700 shadow-sm shadow-indigo-100/50'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 ${active ? 'text-indigo-600' : 'text-slate-400'}`} />
+                  <span>{item.name}</span>
+                </Link>
+              );
+            })}
+          </nav>
         </div>
 
-        <button
-          onClick={handleResetSession}
-          disabled={resetting}
-          className="w-full text-xs font-bold text-slate-500 hover:text-rose-600 flex items-center justify-center space-x-2 py-2.5 px-3 rounded-xl border border-slate-200 hover:border-rose-200 bg-slate-50/50 hover:bg-rose-50/50 transition-all shadow-sm"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${resetting ? 'animate-spin' : ''}`} />
-          <span>Nova Sessão</span>
-        </button>
+        <div className="pt-6 border-t border-slate-100 space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</span>
+            {isMockMode ? (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200/60 animate-pulse">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span>
+                Simulador
+              </span>
+            ) : (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
+                API Online
+              </span>
+            )}
+          </div>
+
+          <Link
+            to="/"
+            className="w-full text-xs font-bold text-slate-500 hover:text-indigo-700 flex items-center justify-center space-x-2 py-2.5 px-3 rounded-xl border border-slate-200 hover:border-indigo-200 bg-slate-50/50 hover:bg-indigo-50/60 transition-all shadow-sm"
+          >
+            <House className="w-3.5 h-3.5" />
+            <span>Ver página inicial</span>
+          </Link>
+        </div>
       </div>
     </aside>
   );
 }
 
 export default function Navbar() {
-  const { isMockMode, endSession } = useSession();
+  const { isMockMode } = useSession();
   const location = useLocation();
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
-  const [resetting, setResetting] = useState(false);
 
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
@@ -118,15 +106,6 @@ export default function Navbar() {
     { name: 'Guia da Gupy', path: '/guia', icon: BookOpen },
     { name: 'Checklist Interativo', path: '/checklist', icon: CheckSquare },
   ];
-
-  const handleResetSession = async () => {
-    if (confirm("Tem certeza que deseja encerrar a sessão atual? Isso limpará seus currículos e relatórios temporários do simulador e gerará uma nova sessão.")) {
-      setResetting(true);
-      await endSession();
-      setResetting(false);
-      window.location.href = '/';
-    }
-  };
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/';
@@ -138,7 +117,7 @@ export default function Navbar() {
       <nav className="bg-white/95 border-b border-gray-100 sticky top-0 z-50 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3 min-w-0">
               <Link to="/" className="flex items-center space-x-2 flex-shrink-0">
                 <div className="w-9 h-9 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-md shadow-indigo-200">
                   G
@@ -148,15 +127,15 @@ export default function Navbar() {
                 </span>
               </Link>
 
-              <span className="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-indigo-50 text-indigo-700 border border-indigo-100/50">
+              <span className="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-indigo-50 text-indigo-700 border border-indigo-100/50 whitespace-nowrap">
                 Otimizador ATS · Gratuito
               </span>
             </div>
 
-            <div className="flex items-center">
+            <div className="flex items-center pl-3">
               <Link
                 to="/dashboard"
-                className="inline-flex items-center gap-1.5 px-4.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] uppercase tracking-wider font-extrabold rounded-xl shadow-sm transition-all hover:shadow-indigo-100 active:scale-95"
+                className="inline-flex items-center gap-1.5 px-4.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] uppercase tracking-wider font-extrabold rounded-xl shadow-sm transition-all hover:shadow-indigo-100 active:scale-95 whitespace-nowrap"
               >
                 <span>Acessar Painel</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -235,13 +214,12 @@ export default function Navbar() {
             <button
               onClick={() => {
                 setIsOpen(false);
-                handleResetSession();
+                navigate('/');
               }}
-              disabled={resetting}
-              className="w-full text-center text-sm text-red-600 bg-red-50 hover:bg-red-100 py-2 px-3 rounded-md font-medium transition-all flex items-center justify-center space-x-2"
+              className="w-full text-center text-sm text-indigo-700 bg-indigo-50 hover:bg-indigo-100 py-2 px-3 rounded-md font-medium transition-all flex items-center justify-center space-x-2"
             >
-              <RefreshCw className={`w-4 h-4 ${resetting ? 'animate-spin' : ''}`} />
-              <span>Resetar Sessão Atual</span>
+              <House className="w-4 h-4" />
+              <span>Ver página inicial</span>
             </button>
           </div>
         </div>
@@ -249,3 +227,4 @@ export default function Navbar() {
     </nav>
   );
 }
+

@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { generate as generateApi, reports as reportsApi } from '../services/api';
+import { computeAtsScore } from '../utils/report';
 import CvUploader from '../components/CvUploader';
 import SummaryResult from '../components/SummaryResult';
 import KeywordBadges from '../components/KeywordBadges';
@@ -30,7 +31,7 @@ function GeneratingOverlay() {
 
   useEffect(() => {
     const id = setInterval(() => {
-      setDots(d => d.length >= 3 ? '' : d + '.');
+      setDots((d) => (d.length >= 3 ? '' : d + '.'));
     }, 500);
     return () => clearInterval(id);
   }, []);
@@ -38,8 +39,8 @@ function GeneratingOverlay() {
   useEffect(() => {
     const add = () => {
       const word = FLOATING_KEYWORDS[Math.floor(Math.random() * FLOATING_KEYWORDS.length)];
-      const id   = counterRef.current++;
-      setVisibleWords(prev => [
+      const id = counterRef.current++;
+      setVisibleWords((prev) => [
         ...prev.slice(-14),
         {
           id,
@@ -59,15 +60,14 @@ function GeneratingOverlay() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-50/90 backdrop-blur-sm">
-
       <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
-        {visibleWords.map(w => (
+        {visibleWords.map((w) => (
           <span
             key={w.id}
             className="absolute font-semibold text-indigo-400/30 animate-float-word transition-all"
             style={{
               left: `${w.x}%`,
-              top:  `${w.y}%`,
+              top: `${w.y}%`,
               fontSize: w.size,
               animationDuration: `${2.5 + Math.random() * 2}s`,
             }}
@@ -78,7 +78,6 @@ function GeneratingOverlay() {
       </div>
 
       <div className="relative z-10 flex flex-col items-center text-center max-w-sm px-8 py-10 bg-white rounded-2xl shadow-xl border border-slate-100">
-
         <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center mb-6">
           <Sparkles className="w-8 h-8 text-indigo-500 animate-pulse" />
         </div>
@@ -104,59 +103,25 @@ function GeneratingOverlay() {
   );
 }
 
-const CLICHES      = ['proativo', 'dedicado', 'fora da caixa', 'perfeccionista', 'apaixonado', 'motivado'];
-const ACTION_VERBS = ['desenvolvi', 'implementei', 'criei', 'liderei', 'otimizei', 'gerenciei', 'estruturei', 'coordenei', 'construí'];
-
-function computeScore(summary: string, jobContent: string): number {
-  if (!summary || summary.length < 10) return 0;
-  const norm = (t: string) =>
-    t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ');
-  const ns = norm(summary);
-  const nj = norm(jobContent);
-  let score = 0;
-
-  if (summary.length >= 800 && summary.length <= 1400) score += 25;
-  else if (summary.length >= 500) score += 12;
-
-  if (ACTION_VERBS.some(v => ns.includes(norm(v)))) score += 25;
-  if (!CLICHES.some(c => ns.includes(norm(c)))) score += 25;
-
-  if (jobContent.length > 10) {
-    const sw   = new Set(ns.split(/\s+/).filter(w => w.length > 3));
-    const hits = nj.split(/\s+/).filter(w => w.length > 3 && sw.has(w)).length;
-    if (hits >= 5) score += 25;
-    else if (hits >= 2) score += 15;
-  } else {
-    score += 10;
-  }
-
-  return Math.min(score, 100);
-}
-
 export default function Generate() {
   const navigate = useNavigate();
 
-  // Inputs
-  const [selectedCv,  setSelectedCv]  = useState<any | null>(null);
-  const [jobTitle,    setJobTitle]    = useState('');
-  const [jobContent,  setJobContent]  = useState('');
+  const [selectedCv, setSelectedCv] = useState<any | null>(null);
+  const [jobTitle, setJobTitle] = useState('');
+  const [jobContent, setJobContent] = useState('');
 
-  // UI
   const [generating, setGenerating] = useState(false);
-  const [saving,     setSaving]     = useState(false);
-  const [error,      setError]      = useState<string | null>(null);
-  const [success,    setSuccess]    = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
-  // Results
   const [generatedResult, setGeneratedResult] = useState<any | null>(null);
-  const [editedSummary,   setEditedSummary]   = useState('');
+  const [editedSummary, setEditedSummary] = useState('');
 
   const liveScore = useMemo(
-    () => computeScore(editedSummary, jobContent),
+    () => computeAtsScore(editedSummary, jobContent),
     [editedSummary, jobContent],
   );
-
-  /* ── Generate ─────────────────────────────────────────────────────────── */
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -180,8 +145,8 @@ export default function Generate() {
       setGeneratedResult(null);
 
       const response = await generateApi.run({
-        cvId:       selectedCv.id,
-        jobTitle:   jobTitle.trim(),
+        cvId: selectedCv.id,
+        jobTitle: jobTitle.trim(),
         jobContent: jobContent.trim(),
       });
 
@@ -198,16 +163,12 @@ export default function Generate() {
     }
   };
 
-  /* ── Save ─────────────────────────────────────────────────────────────── */
-
   const handleSave = async () => {
     if (!generatedResult) return;
     try {
       setSaving(true);
       setError(null);
 
-      // O relatório já foi criado pelo backend durante o generate.run (POST /api/generate).
-      // Aqui só persistimos o summary editado manualmente via PUT /api/reports/:id.
       const reportId = generatedResult.reportId || generatedResult.id;
       await reportsApi.update(reportId, { summary: editedSummary });
 
@@ -220,16 +181,11 @@ export default function Generate() {
     }
   };
 
-  /* ── Loading overlay ──────────────────────────────────────────────────── */
-
   if (generating) return <GeneratingOverlay />;
-
-  /* ── Results ──────────────────────────────────────────────────────────── */
 
   if (generatedResult && !generating) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 animate-fade-in">
-
         <div className="flex items-center gap-3 mb-6">
           <button
             onClick={() => { setGeneratedResult(null); setEditedSummary(''); }}
@@ -260,7 +216,6 @@ export default function Generate() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-
           <div className="lg:col-span-2 space-y-4">
             <SummaryResult
               summary={editedSummary}
@@ -316,11 +271,8 @@ export default function Generate() {
     );
   }
 
-  /* ── Form ─────────────────────────────────────────────────────────────── */
-
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 animate-fade-in">
-
       <div className="mb-8">
         <h1 className="text-2xl font-black text-slate-900 tracking-tight">Otimizar currículo</h1>
         <p className="text-sm text-slate-500 mt-0.5">
@@ -336,7 +288,6 @@ export default function Generate() {
       )}
 
       <form onSubmit={handleGenerate} className="space-y-5">
-
         <CvUploader
           selectedCvId={selectedCv?.id ?? null}
           onSelectCv={setSelectedCv}
@@ -402,3 +353,4 @@ export default function Generate() {
     </div>
   );
 }
+

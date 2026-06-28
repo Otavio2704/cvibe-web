@@ -1,14 +1,7 @@
-// Centralized API communication for Gupify Web
-// Uses VITE_API_BASE_URL and credentials: 'include' as required by the docs.
-// Includes an automatic fallback to local simulation if the backend is offline/unreachable.
-
 const API_BASE_URL = (import.meta as any).env.VITE_API_BASE_URL || 'https://gupify.onrender.com';
 
 let useMock = false;
 let onMockStateChange: ((val: boolean) => void) | null = null;
-
-// Guarda a Promise de inicialização de sessão para que nenhuma chamada
-// autenticada seja disparada antes de o cookie estar disponível.
 let sessionInitPromise: Promise<any> | null = null;
 
 export const setMockStateListener = (callback: (val: boolean) => void) => {
@@ -25,8 +18,25 @@ const triggerMockMode = () => {
   }
 };
 
+const normalizeReport = (report: any) => ({
+  ...report,
+  id: report.id || report.reportId,
+  jobTitle: report.jobDescriptionTitle || report.jobTitle || 'Vaga Alvo',
+  jobContent: report.jobDescriptionContent || report.jobContent || '',
+  cvName: report.cvName || report.cvFileName || 'Currículo Selecionado',
+  createdAt: report.createdAt || report.generatedAt || new Date().toISOString(),
+  updatedAt: report.updatedAt || report.lastUpdatedAt || report.createdAt || report.generatedAt || new Date().toISOString(),
+  versions: Array.isArray(report.versions)
+    ? report.versions.map((version: any, index: number) => ({
+        ...version,
+        version: version.version || index + 1,
+        createdAt: version.createdAt || version.updatedAt || report.updatedAt || report.createdAt,
+        updatedAt: version.updatedAt || version.createdAt || report.updatedAt || report.createdAt,
+      }))
+    : [],
+});
+
 const apiFetch = async (path: string, options: RequestInit = {}) => {
-  // Garante que a sessão foi inicializada antes de qualquer chamada autenticada.
   const isPublicRoute = path === '/api/session' && (!options.method || options.method === 'POST');
   if (!isPublicRoute && sessionInitPromise) {
     await sessionInitPromise;
@@ -42,8 +52,6 @@ const apiFetch = async (path: string, options: RequestInit = {}) => {
       },
     });
 
-    // 401/403: tenta renovar a sessão uma vez antes de ativar o mock.
-    // Evita que uma sessão expirada derrube o app inteiro desnecessariamente.
     if (response.status === 401 || response.status === 403) {
       if (!isPublicRoute) {
         try {
@@ -58,7 +66,6 @@ const apiFetch = async (path: string, options: RequestInit = {}) => {
           });
           if (retry.ok) return retry;
         } catch {
-          // retry falhou — cai no mock abaixo
         }
       }
       triggerMockMode();
@@ -76,8 +83,6 @@ const apiFetch = async (path: string, options: RequestInit = {}) => {
     throw error;
   }
 };
-
-// --- SIMULATION DATABASE (localStorage) ---
 
 const getLocalData = (key: string, defaultValue: any) => {
   const data = localStorage.getItem(key);
@@ -106,7 +111,7 @@ const initMockDB = () => {
 
 initMockDB();
 
-const simulateAIGeneration = (cvText: string, jobTitle: string, jobContent: string) => {
+const simulateAIGeneration = (cvText: string, jobTitle: string, jobContent: string, previousVersionsCount = 0) => {
   const sampleKeywords = ['React', 'TypeScript', 'Node.js', 'Tailwind CSS', 'Git', 'API REST', 'Scrum', 'SQL', 'Docker', 'Spring Boot', 'Java'];
   const words = (jobTitle + ' ' + jobContent)
     .toLowerCase()
@@ -114,22 +119,22 @@ const simulateAIGeneration = (cvText: string, jobTitle: string, jobContent: stri
     .split(/\s+/);
 
   const matchedKeywords = sampleKeywords.filter(
-    kw => words.includes(kw.toLowerCase()) || jobTitle.toLowerCase().includes(kw.toLowerCase()),
+    (kw) => words.includes(kw.toLowerCase()) || jobTitle.toLowerCase().includes(kw.toLowerCase()),
   );
 
   while (matchedKeywords.length < 3) {
     const defaultKws = ['Metodologias Ágeis', 'Resolução de Problemas', 'Clean Code'];
-    const nextKw = defaultKws.find(k => !matchedKeywords.includes(k));
+    const nextKw = defaultKws.find((k) => !matchedKeywords.includes(k));
     matchedKeywords.push(nextKw || 'Boas Práticas');
   }
 
   const selectedKeywords = matchedKeywords.slice(0, 3);
-  const summary = `Como profissional especializado em ${jobTitle}, desenvolvi e criei soluções focadas em alto desempenho. Com ampla experiência prática na utilização de ${selectedKeywords.join(', ')}, liderei a arquitetura e implementação de módulos dinâmicos alinhados aos objetivos estratégicos da empresa.`;
+  const summary = previousVersionsCount > 0
+    ? `Na versão ${previousVersionsCount + 1} para ${jobTitle}, destaquei entregas com foco em resultados mensuráveis, aderência ao ATS e experiência prática com ${selectedKeywords.join(', ')}, conectando sua trajetória às exigências centrais da vaga.`
+    : `Como profissional especializado em ${jobTitle}, desenvolvi e criei soluções focadas em alto desempenho. Com ampla experiência prática na utilização de ${selectedKeywords.join(', ')}, liderei a arquitetura e implementação de módulos dinâmicos alinhados aos objetivos estratégicos da empresa.`;
 
   return { summary, keywords: selectedKeywords };
 };
-
-// --- EXPORTED API CALLS ---
 
 export const session = {
   init: async () => {
@@ -201,7 +206,7 @@ export const cv = {
       const cvs = getLocalData('gupify_mock_cvs', []);
       cvs.push(newCv);
       setLocalData('gupify_mock_cvs', cvs);
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       return newCv;
     }
   },
@@ -245,16 +250,14 @@ export const generate = {
       });
       if (!res.ok) throw new Error(`Generate failed: ${res.status}`);
       const data = await res.json();
-      // Backend retorna: { reportId, summary, keywords, fromCache }
-      // Normalizamos para que o frontend sempre tenha reportId e id preenchidos.
       return {
-        reportId:   data.reportId,
-        id:         data.reportId,
-        summary:    data.summary,
-        keywords:   data.keywords,
-        fromCache:  data.fromCache,
-        cvId:       body.cvId,
-        jobTitle:   body.jobTitle,
+        reportId: data.reportId,
+        id: data.reportId,
+        summary: data.summary,
+        keywords: data.keywords,
+        fromCache: data.fromCache,
+        cvId: body.cvId,
+        jobTitle: body.jobTitle,
         jobContent: body.jobContent,
       };
     } catch (err) {
@@ -262,17 +265,40 @@ export const generate = {
       const cvs = getLocalData('gupify_mock_cvs', []);
       const selectedCv = cvs.find((c: any) => c.id === body.cvId) || { content: 'vazio', name: 'Curriculo.pdf' };
       const aiResult = simulateAIGeneration(selectedCv.content, body.jobTitle, body.jobContent);
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise((resolve) => setTimeout(resolve, 1500));
       const mockId = 'rep-' + Math.random().toString(36).substring(2, 9);
+      const now = new Date().toISOString();
+      const mockReport = normalizeReport({
+        id: mockId,
+        cvId: body.cvId,
+        cvName: selectedCv.name,
+        jobTitle: body.jobTitle,
+        jobContent: body.jobContent,
+        summary: aiResult.summary,
+        keywords: aiResult.keywords,
+        createdAt: now,
+        updatedAt: now,
+        versions: [
+          {
+            version: 1,
+            summary: aiResult.summary,
+            createdAt: now,
+            updatedAt: now,
+          },
+        ],
+      });
+      const reports = getLocalData('gupify_mock_reports', []);
+      reports.unshift(mockReport);
+      setLocalData('gupify_mock_reports', reports);
       return {
-        reportId:   mockId,
-        id:         mockId,
-        summary:    aiResult.summary,
-        keywords:   aiResult.keywords,
-        fromCache:  false,
-        cvId:       body.cvId,
-        cvName:     selectedCv.name,
-        jobTitle:   body.jobTitle,
+        reportId: mockId,
+        id: mockId,
+        summary: aiResult.summary,
+        keywords: aiResult.keywords,
+        fromCache: false,
+        cvId: body.cvId,
+        cvName: selectedCv.name,
+        jobTitle: body.jobTitle,
         jobContent: body.jobContent,
       };
     }
@@ -284,15 +310,10 @@ export const reports = {
     try {
       const res = await apiFetch('/api/reports');
       const list = await res.json();
-      return (list || []).map((r: any) => ({
-        ...r,
-        jobTitle:   r.jobDescriptionTitle   || r.jobTitle   || 'Vaga Alvo',
-        jobContent: r.jobDescriptionContent || r.jobContent || '',
-        cvName:     r.cvName                               || 'Currículo Selecionado',
-      }));
+      return (list || []).map(normalizeReport);
     } catch (err) {
       triggerMockMode();
-      return getLocalData('gupify_mock_reports', []);
+      return getLocalData('gupify_mock_reports', []).map(normalizeReport);
     }
   },
 
@@ -300,37 +321,78 @@ export const reports = {
     try {
       const res = await apiFetch(`/api/reports/${id}`);
       const r = await res.json();
-      return {
-        ...r,
-        jobTitle:   r.jobDescriptionTitle   || r.jobTitle   || 'Vaga Alvo',
-        jobContent: r.jobDescriptionContent || r.jobContent || '',
-        cvName:     r.cvName                               || 'Currículo Selecionado',
-      };
+      const normalized = normalizeReport(r);
+      const localList = getLocalData('gupify_mock_reports', []);
+      const localFound = localList.find((item: any) => item.id === id);
+
+      if (localFound) {
+        return normalizeReport({
+          ...localFound,
+          ...normalized,
+          jobTitle: normalized.jobTitle || localFound.jobTitle,
+          jobContent: normalized.jobContent || localFound.jobContent,
+          cvName: normalized.cvName || localFound.cvName,
+          versions: normalized.versions?.length ? normalized.versions : localFound.versions,
+        });
+      }
+
+      return normalized;
     } catch (err) {
       triggerMockMode();
       const list = getLocalData('gupify_mock_reports', []);
       const found = list.find((r: any) => r.id === id);
       if (!found) throw new Error('Não encontrado');
-      return found;
+      return normalizeReport(found);
     }
   },
 
-  // Atualiza o summary editado manualmente pelo usuário após a geração.
-  // O relatório já é criado pelo backend durante o POST /api/generate,
-  // por isso não existe mais um reports.create — só update.
   update: async (id: string, body: { summary: string }) => {
     try {
       const res = await apiFetch(`/api/reports/${id}`, {
         method: 'PUT',
         body: JSON.stringify(body),
       });
-      return await res.json();
+      const updated = await res.json();
+      const normalized = normalizeReport(updated);
+
+      if (normalized.jobTitle && normalized.jobContent && normalized.versions?.length) {
+        return normalized;
+      }
+
+      const localList = getLocalData('gupify_mock_reports', []);
+      const localFound = localList.find((r: any) => r.id === id);
+      if (localFound) {
+        return normalizeReport({ ...localFound, ...normalized });
+      }
+
+      return normalized;
     } catch (err) {
       triggerMockMode();
       const list = getLocalData('gupify_mock_reports', []);
       const index = list.findIndex((r: any) => r.id === id);
       if (index !== -1) {
-        list[index] = { ...list[index], ...body };
+        const now = new Date().toISOString();
+        const current = normalizeReport(list[index]);
+        const versions = current.versions?.length
+          ? [...current.versions]
+          : [{ version: 1, summary: current.summary, createdAt: current.createdAt, updatedAt: current.updatedAt }];
+
+        const lastVersion = versions[versions.length - 1];
+        if (lastVersion?.summary !== body.summary) {
+          versions.push({
+            version: versions.length + 1,
+            summary: body.summary,
+            createdAt: now,
+            updatedAt: now,
+          });
+        }
+
+        list[index] = normalizeReport({
+          ...current,
+          ...body,
+          updatedAt: now,
+          versions,
+        });
         setLocalData('gupify_mock_reports', list);
         return list[index];
       }
@@ -341,13 +403,55 @@ export const reports = {
   regenerate: async (id: string) => {
     try {
       const res = await apiFetch(`/api/reports/${id}/regenerate`, { method: 'POST' });
-      return await res.json();
+      const regenerated = await res.json();
+      const normalized = normalizeReport(regenerated);
+
+      const localList = getLocalData('gupify_mock_reports', []);
+      const localIndex = localList.findIndex((r: any) => r.id === id);
+
+      if (localIndex !== -1) {
+        const localCurrent = normalizeReport(localList[localIndex]);
+        const mergedVersions = normalized.versions?.length ? normalized.versions : localCurrent.versions;
+        const mergedReport = normalizeReport({
+          ...localCurrent,
+          ...normalized,
+          jobTitle: normalized.jobTitle || localCurrent.jobTitle,
+          jobContent: normalized.jobContent || localCurrent.jobContent,
+          cvName: normalized.cvName || localCurrent.cvName,
+          versions: mergedVersions,
+        });
+        localList[localIndex] = mergedReport;
+        setLocalData('gupify_mock_reports', localList);
+        return mergedReport;
+      }
+
+      return normalized;
     } catch (err) {
       triggerMockMode();
       const list = getLocalData('gupify_mock_reports', []);
       const index = list.findIndex((r: any) => r.id === id);
       if (index !== -1) {
-        list[index].summary = `[Regerado] ${list[index].summary}`;
+        const current = normalizeReport(list[index]);
+        const aiResult = simulateAIGeneration('', current.jobTitle, current.jobContent, current.versions?.length || 0);
+        const now = new Date().toISOString();
+        const versions = current.versions?.length
+          ? [...current.versions]
+          : [{ version: 1, summary: current.summary, createdAt: current.createdAt, updatedAt: current.updatedAt }];
+
+        versions.push({
+          version: versions.length + 1,
+          summary: aiResult.summary,
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        list[index] = normalizeReport({
+          ...current,
+          summary: aiResult.summary,
+          keywords: aiResult.keywords,
+          updatedAt: now,
+          versions,
+        });
         setLocalData('gupify_mock_reports', list);
         return list[index];
       }
@@ -369,3 +473,4 @@ export const reports = {
     }
   },
 };
+
