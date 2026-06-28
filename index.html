@@ -4,20 +4,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <!-- 🔒 FIX #4 (Média): Content Security Policy -->
-    <!-- Restringe origens de scripts, estilos, conexões e iframes -->
-    <!-- unsafe-inline necessário pois vite-plugin-singlefile injeta tudo inline -->
-    <!-- frame-ancestors bloqueia clickjacking mesmo sem header HTTP -->
+    <!-- 🔒 CSP do front -->
+    <!-- unsafe-inline é necessário porque o vite-plugin-singlefile injeta assets inline -->
+    <!-- frame-ancestors não funciona via meta tag; se precisar, configure no servidor HTTP -->
     <meta
       http-equiv="Content-Security-Policy"
       content="
         default-src 'self';
         script-src 'self' 'unsafe-inline';
-        style-src 'self' 'unsafe-inline';
-        connect-src 'self' https://gupify.onrender.com;
+        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+        connect-src 'self' http://localhost:8080 https://gupify.onrender.com;
         img-src 'self' data:;
-        font-src 'self';
-        frame-ancestors 'none';
+        font-src 'self' data: https://fonts.gstatic.com;
       "
     />
 
@@ -26,5 +24,6 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-  </body>
+  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a12f80d179ea11fe',t:'MTc4MjY3OTE5MQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
+

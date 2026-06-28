@@ -1,4 +1,10 @@
-const API_BASE_URL = (import.meta as any).env.VITE_API_BASE_URL || 'https://gupify.onrender.com';
+const resolveApiBaseUrl = () => {
+  const envBaseUrl = (import.meta as any).env.VITE_API_BASE_URL?.trim();
+  if (envBaseUrl) return envBaseUrl.replace(/\/$/, '');
+  return (import.meta as any).env.DEV ? 'http://localhost:8080' : 'https://gupify.onrender.com';
+};
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 let useMock = false;
 let onMockStateChange: ((val: boolean) => void) | null = null;
@@ -91,6 +97,85 @@ const getLocalData = (key: string, defaultValue: any) => {
 
 const setLocalData = (key: string, data: any) => {
   localStorage.setItem(key, JSON.stringify(data));
+};
+
+const REPORT_CACHE_KEY = 'gupify_report_cache';
+
+const getReportCache = () => getLocalData(REPORT_CACHE_KEY, {} as Record<string, any>);
+
+const setReportCache = (cache: Record<string, any>) => {
+  setLocalData(REPORT_CACHE_KEY, cache);
+};
+
+const getCachedReport = (id: string) => {
+  const cache = getReportCache();
+  return cache[id] || null;
+};
+
+const saveCachedReport = (report: any) => {
+  const normalized = normalizeReport(report);
+  if (!normalized.id) return normalized;
+
+  const cache = getReportCache();
+  cache[String(normalized.id)] = normalized;
+  setReportCache(cache);
+  return normalized;
+};
+
+const removeCachedReport = (id: string) => {
+  const cache = getReportCache();
+  delete cache[id];
+  setReportCache(cache);
+};
+
+const mergeWithCachedReport = (report: any) => {
+  const normalized = normalizeReport(report);
+  if (!normalized.id) return normalized;
+
+  const cached = getCachedReport(String(normalized.id));
+  if (!cached) return normalized;
+
+  const hasJobTitle = !!(report?.jobDescriptionTitle || report?.jobTitle);
+  const hasJobContent = !!(report?.jobDescriptionContent || report?.jobContent);
+  const hasCvName = !!(report?.cvName || report?.cvFileName);
+  const hasVersions = Array.isArray(report?.versions) && report.versions.length > 0;
+
+  return normalizeReport({
+    ...cached,
+    ...normalized,
+    jobTitle: hasJobTitle ? normalized.jobTitle : cached.jobTitle,
+    jobContent: hasJobContent ? normalized.jobContent : cached.jobContent,
+    cvName: hasCvName ? normalized.cvName : cached.cvName,
+    versions: hasVersions ? normalized.versions : cached.versions,
+  });
+};
+
+const buildVersions = (currentReport: any, nextSummary: string) => {
+  const now = new Date().toISOString();
+  const current = currentReport ? normalizeReport(currentReport) : null;
+
+  const versions = current?.versions?.length
+    ? [...current.versions]
+    : current?.summary
+      ? [{
+          version: 1,
+          summary: current.summary,
+          createdAt: current.createdAt || now,
+          updatedAt: current.updatedAt || current.createdAt || now,
+        }]
+      : [];
+
+  const lastSummary = versions[versions.length - 1]?.summary;
+  if (nextSummary && nextSummary !== lastSummary) {
+    versions.push({
+      version: versions.length + 1,
+      summary: nextSummary,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
+  return versions;
 };
 
 const initMockDB = () => {
@@ -242,7 +327,7 @@ export const cv = {
 };
 
 export const generate = {
-  run: async (body: { cvId: string; jobTitle: string; jobContent: string }) => {
+  run: async (body: { cvId: string; jobTitle: string; jobContent: string; cvName?: string }) => {
     try {
       const res = await apiFetch('/api/generate', {
         method: 'POST',
@@ -250,13 +335,37 @@ export const generate = {
       });
       if (!res.ok) throw new Error(`Generate failed: ${res.status}`);
       const data = await res.json();
-      return {
-        reportId: data.reportId,
+      const now = new Date().toISOString();
+      const result = saveCachedReport({
         id: data.reportId,
+        reportId: data.reportId,
         summary: data.summary,
         keywords: data.keywords,
         fromCache: data.fromCache,
         cvId: body.cvId,
+        cvName: body.cvName,
+        jobTitle: body.jobTitle,
+        jobContent: body.jobContent,
+        createdAt: now,
+        updatedAt: now,
+        versions: [
+          {
+            version: 1,
+            summary: data.summary,
+            createdAt: now,
+            updatedAt: now,
+          },
+        ],
+      });
+
+      return {
+        reportId: result.id,
+        id: result.id,
+        summary: result.summary,
+        keywords: result.keywords,
+        fromCache: data.fromCache,
+        cvId: body.cvId,
+        cvName: body.cvName,
         jobTitle: body.jobTitle,
         jobContent: body.jobContent,
       };
@@ -310,7 +419,7 @@ export const reports = {
     try {
       const res = await apiFetch('/api/reports');
       const list = await res.json();
-      return (list || []).map(normalizeReport);
+      return (list || []).map((item: any) => saveCachedReport(mergeWithCachedReport(item)));
     } catch (err) {
       triggerMockMode();
       return getLocalData('gupify_mock_reports', []).map(normalizeReport);
@@ -321,22 +430,22 @@ export const reports = {
     try {
       const res = await apiFetch(`/api/reports/${id}`);
       const r = await res.json();
-      const normalized = normalizeReport(r);
+      const merged = mergeWithCachedReport(r);
       const localList = getLocalData('gupify_mock_reports', []);
       const localFound = localList.find((item: any) => item.id === id);
 
       if (localFound) {
-        return normalizeReport({
+        return saveCachedReport(normalizeReport({
           ...localFound,
-          ...normalized,
-          jobTitle: normalized.jobTitle || localFound.jobTitle,
-          jobContent: normalized.jobContent || localFound.jobContent,
-          cvName: normalized.cvName || localFound.cvName,
-          versions: normalized.versions?.length ? normalized.versions : localFound.versions,
-        });
+          ...merged,
+          jobTitle: merged.jobTitle || localFound.jobTitle,
+          jobContent: merged.jobContent || localFound.jobContent,
+          cvName: merged.cvName || localFound.cvName,
+          versions: merged.versions?.length ? merged.versions : localFound.versions,
+        }));
       }
 
-      return normalized;
+      return saveCachedReport(merged);
     } catch (err) {
       triggerMockMode();
       const list = getLocalData('gupify_mock_reports', []);
@@ -353,7 +462,18 @@ export const reports = {
         body: JSON.stringify(body),
       });
       const updated = await res.json();
-      const normalized = normalizeReport(updated);
+      const cached = getCachedReport(id);
+      const versions = buildVersions(cached, body.summary);
+      const normalized = saveCachedReport(normalizeReport({
+        ...cached,
+        ...updated,
+        id,
+        summary: updated.summary || body.summary,
+        jobTitle: updated.jobDescriptionTitle || cached?.jobTitle,
+        jobContent: updated.jobDescriptionContent || cached?.jobContent || '',
+        cvName: updated.cvFileName || cached?.cvName,
+        versions,
+      }));
 
       if (normalized.jobTitle && normalized.jobContent && normalized.versions?.length) {
         return normalized;
@@ -362,7 +482,7 @@ export const reports = {
       const localList = getLocalData('gupify_mock_reports', []);
       const localFound = localList.find((r: any) => r.id === id);
       if (localFound) {
-        return normalizeReport({ ...localFound, ...normalized });
+        return saveCachedReport(normalizeReport({ ...localFound, ...normalized }));
       }
 
       return normalized;
@@ -404,7 +524,17 @@ export const reports = {
     try {
       const res = await apiFetch(`/api/reports/${id}/regenerate`, { method: 'POST' });
       const regenerated = await res.json();
-      const normalized = normalizeReport(regenerated);
+      const cached = getCachedReport(id);
+      const versions = buildVersions(cached, regenerated.summary);
+      const normalized = saveCachedReport(normalizeReport({
+        ...cached,
+        ...regenerated,
+        id: regenerated.id || regenerated.reportId || id,
+        summary: regenerated.summary || cached?.summary,
+        keywords: regenerated.keywords || cached?.keywords,
+        updatedAt: new Date().toISOString(),
+        versions,
+      }));
 
       const localList = getLocalData('gupify_mock_reports', []);
       const localIndex = localList.findIndex((r: any) => r.id === id);
@@ -422,7 +552,7 @@ export const reports = {
         });
         localList[localIndex] = mergedReport;
         setLocalData('gupify_mock_reports', localList);
-        return mergedReport;
+        return saveCachedReport(mergedReport);
       }
 
       return normalized;
@@ -463,14 +593,17 @@ export const reports = {
     try {
       const res = await apiFetch(`/api/reports/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
+      removeCachedReport(id);
       return { success: true };
     } catch (err) {
       triggerMockMode();
       let list = getLocalData('gupify_mock_reports', []);
       list = list.filter((r: any) => r.id !== id);
       setLocalData('gupify_mock_reports', list);
+      removeCachedReport(id);
       return { success: true };
     }
   },
 };
+
 
