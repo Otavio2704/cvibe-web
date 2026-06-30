@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { cv as cvApi } from '../services/api';
-import { 
-  FileText, 
-  Upload, 
-  Trash2, 
-  CheckCircle, 
-  AlertCircle, 
-  Loader2, 
-  PlusCircle, 
-  FileCheck 
+import { classifyError } from '../utils/errors';
+import ErrorBanner from './ErrorBanner';
+import type { GupifyError } from '../utils/errors';
+import {
+  FileText,
+  Upload,
+  Trash2,
+  CheckCircle,
+  Loader2,
+  PlusCircle,
+  FileCheck,
 } from 'lucide-react';
 
 interface CvUploaderProps {
@@ -16,9 +18,7 @@ interface CvUploaderProps {
   onSelectCv: (cv: any) => void;
 }
 
-// 🔒 FIX #5 (Média): MIME types permitidos definidos como constante
-// Validar por MIME type é mais seguro que só por extensão — impede que um
-// arquivo renomeado (ex: malware.exe → cv.pdf) passe pela validação
+// 🔒 Validação por MIME type — mais segura que checar só a extensão do nome
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -28,9 +28,10 @@ export default function CvUploader({ selectedCvId, onSelectCv }: CvUploaderProps
   const [cvList, setCvList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<GupifyError | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
 
   const loadCvs = async () => {
     try {
@@ -38,34 +39,35 @@ export default function CvUploader({ selectedCvId, onSelectCv }: CvUploaderProps
       setError(null);
       const data = await cvApi.list();
       setCvList(data || []);
-      
       if (data && data.length > 0 && !selectedCvId) {
         onSelectCv(data[0]);
       }
     } catch (err) {
-      console.error("Error loading CVs:", err);
-      setError("Não foi possível carregar os currículos salvos.");
+      setError(classifyError(err, 'load'));
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => { loadCvs(); }, []);
+
+  // Limpa erro de offline automaticamente ao reconectar
   useEffect(() => {
-    loadCvs();
-  }, []);
+    if (error?.kind !== 'offline') return;
+    const handler = () => setError(null);
+    window.addEventListener('online', handler);
+    return () => window.removeEventListener('online', handler);
+  }, [error]);
 
   const handleFileUpload = async (file: File) => {
     if (!file) return;
 
-    // 🔒 FIX #5 (Média): Validação por MIME type substituindo (e complementando)
-    // a validação anterior que só checava extensão do nome do arquivo
     if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-      setError("Por favor, envie apenas arquivos nos formatos PDF ou DOCX.");
+      setError({ kind: 'upload_type', message: 'Envie apenas arquivos nos formatos PDF ou DOCX.' });
       return;
     }
-
     if (file.size > 5 * 1024 * 1024) {
-      setError("O arquivo excede o limite de tamanho de 5MB.");
+      setError({ kind: 'upload_size', message: 'O arquivo excede o limite de 5 MB.' });
       return;
     }
 
@@ -78,71 +80,58 @@ export default function CvUploader({ selectedCvId, onSelectCv }: CvUploaderProps
       formData.append('file', file);
 
       const newCv = await cvApi.upload(formData);
-      
       setUploadSuccess(true);
-      
       await loadCvs();
       onSelectCv(newCv);
-      
       setTimeout(() => setUploadSuccess(false), 3000);
     } catch (err) {
-      console.error("Error uploading CV:", err);
-      setError("Ocorreu um erro ao enviar o arquivo do currículo. Tente novamente.");
+      setError(classifyError(err, 'upload'));
     } finally {
       setUploading(false);
     }
   };
 
   const onFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      handleFileUpload(e.target.files[0]);
-    }
+    if (e.target.files?.[0]) handleFileUpload(e.target.files[0]);
   };
 
-  const handleDrag = (e: React.DragEvent<HTMLDivElement | HTMLLabelElement>) => {
+  const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
+    if (e.type === 'dragenter' || e.type === 'dragover') setDragActive(true);
+    else if (e.type === 'dragleave') setDragActive(false);
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement | HTMLLabelElement>) => {
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileUpload(e.dataTransfer.files[0]);
-    }
+    if (e.dataTransfer.files?.[0]) handleFileUpload(e.dataTransfer.files[0]);
   };
 
   const handleDeleteCv = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (!confirm("Tem certeza que deseja excluir este currículo? Esta ação não pode ser desfeita.")) {
-      return;
-    }
-    
+    if (!confirm('Excluir este currículo? Esta ação não pode ser desfeita.')) return;
+
     try {
+      setDeleteLoading(id);
       setError(null);
       await cvApi.remove(id);
-      
-      const updatedList = cvList.filter(item => item.id !== id);
+
+      const updatedList = cvList.filter((item) => item.id !== id);
       setCvList(updatedList);
-      
+
       if (selectedCvId === id) {
-        if (updatedList.length > 0) {
-          onSelectCv(updatedList[0]);
-        } else {
-          onSelectCv(null);
-        }
+        onSelectCv(updatedList.length > 0 ? updatedList[0] : null);
       }
     } catch (err) {
-      console.error("Error deleting CV:", err);
-      setError("Não foi possível excluir o currículo selecionado.");
+      setError(classifyError(err, 'delete'));
+    } finally {
+      setDeleteLoading(null);
     }
   };
+
+  const canRetryLoad = error?.kind !== 'upload_type' && error?.kind !== 'upload_size';
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
@@ -157,9 +146,12 @@ export default function CvUploader({ selectedCvId, onSelectCv }: CvUploaderProps
       </div>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm flex items-start gap-2">
-          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-          <span>{error}</span>
+        <div className="mb-4">
+          <ErrorBanner
+            error={error}
+            onRetry={canRetryLoad ? () => { setError(null); loadCvs(); } : undefined}
+            onDismiss={() => setError(null)}
+          />
         </div>
       )}
 
@@ -188,15 +180,16 @@ export default function CvUploader({ selectedCvId, onSelectCv }: CvUploaderProps
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {cvList.map((cv) => {
               const isSelected = selectedCvId === cv.id;
+              const isDeleting = deleteLoading === cv.id;
               return (
                 <div
                   key={cv.id}
-                  onClick={() => onSelectCv(cv)}
+                  onClick={() => !isDeleting && onSelectCv(cv)}
                   className={`relative cursor-pointer p-4 rounded-xl border transition-all flex items-start justify-between gap-3 ${
                     isSelected
                       ? 'border-indigo-600 bg-indigo-50/40 ring-1 ring-indigo-600'
                       : 'border-gray-200 hover:border-gray-300 bg-white hover:bg-gray-50'
-                  }`}
+                  } ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}
                 >
                   <div className="flex items-start gap-2.5 min-w-0">
                     <div className={`p-2 rounded-lg shrink-0 ${isSelected ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'}`}>
@@ -207,17 +200,23 @@ export default function CvUploader({ selectedCvId, onSelectCv }: CvUploaderProps
                         {cv.name}
                       </p>
                       <p className="text-xs text-gray-400 mt-0.5">
-                        {cv.uploadedAt ? `Enviado em ${new Date(cv.uploadedAt).toLocaleDateString('pt-BR')}` : 'Salvo na Sessão'}
+                        {cv.uploadedAt
+                          ? `Enviado em ${new Date(cv.uploadedAt).toLocaleDateString('pt-BR')}`
+                          : 'Salvo na Sessão'}
                       </p>
                     </div>
                   </div>
-                  
+
                   <button
                     onClick={(e) => handleDeleteCv(e, cv.id)}
-                    className="p-1 text-gray-400 hover:text-red-600 rounded-lg hover:bg-gray-100 shrink-0 transition-colors"
+                    disabled={isDeleting}
+                    className="p-1 text-gray-400 hover:text-red-600 rounded-lg hover:bg-gray-100 shrink-0 transition-colors disabled:opacity-50"
                     title="Excluir currículo"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    {isDeleting
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : <Trash2 className="w-4 h-4" />
+                    }
                   </button>
 
                   {isSelected && (
@@ -243,7 +242,7 @@ export default function CvUploader({ selectedCvId, onSelectCv }: CvUploaderProps
           onChange={onFileInputChange}
           disabled={uploading}
         />
-        
+
         <label
           htmlFor="cv-file-upload"
           onDragEnter={handleDrag}
@@ -251,8 +250,8 @@ export default function CvUploader({ selectedCvId, onSelectCv }: CvUploaderProps
           onDragLeave={handleDrag}
           onDrop={handleDrop}
           className={`flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-6 cursor-pointer transition-all ${
-            dragActive 
-              ? 'border-indigo-600 bg-indigo-50/50' 
+            dragActive
+              ? 'border-indigo-600 bg-indigo-50/50'
               : 'border-gray-200 hover:border-indigo-500/60 bg-gray-50/30 hover:bg-indigo-50/10'
           } ${uploading ? 'pointer-events-none opacity-60' : ''}`}
         >
@@ -271,7 +270,7 @@ export default function CvUploader({ selectedCvId, onSelectCv }: CvUploaderProps
                 Clique para enviar ou arraste o arquivo aqui
               </p>
               <p className="text-xs text-gray-400 mt-1">
-                Suporta formatos PDF e DOCX (Tamanho máx: 5MB)
+                Suporta formatos PDF e DOCX (máx. 5 MB)
               </p>
               <span className="mt-3 inline-flex items-center text-xs font-semibold text-indigo-600 hover:text-indigo-700">
                 <PlusCircle className="w-3.5 h-3.5 mr-1" />

@@ -2,6 +2,9 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { generate as generateApi, reports as reportsApi } from '../services/api';
 import { computeAtsScore } from '../utils/report';
+import { classifyError } from '../utils/errors';
+import type { GupifyError } from '../utils/errors';
+import ErrorBanner from '../components/ErrorBanner';
 import CvUploader from '../components/CvUploader';
 import SummaryResult from '../components/SummaryResult';
 import KeywordBadges from '../components/KeywordBadges';
@@ -10,12 +13,13 @@ import ScoreRing from '../components/ScoreRing';
 import {
   Sparkles,
   Briefcase,
-  AlertCircle,
   Loader2,
   CheckCircle,
   Save,
   RotateCcw,
 } from 'lucide-react';
+
+// ─── Overlay de geração ───────────────────────────────────────────────────────
 
 const FLOATING_KEYWORDS = [
   'Gestão de Projetos', 'Excel Avançado', 'Power BI', 'Atendimento', 'Vendas',
@@ -25,15 +29,15 @@ const FLOATING_KEYWORDS = [
   'Análise de Dados', 'Sucesso do Cliente', 'Operações',
 ];
 
-function GeneratingOverlay() {
-  const [visibleWords, setVisibleWords] = useState<{ id: number; word: string; x: number; y: number; delay: number; size: number }[]>([]);
+function GeneratingOverlay({ onCancel }: { onCancel: () => void }) {
+  const [visibleWords, setVisibleWords] = useState<
+    { id: number; word: string; x: number; y: number; size: number }[]
+  >([]);
   const [dots, setDots] = useState('');
   const counterRef = useRef(0);
 
   useEffect(() => {
-    const id = setInterval(() => {
-      setDots((d) => (d.length >= 3 ? '' : d + '.'));
-    }, 500);
+    const id = setInterval(() => setDots((d) => (d.length >= 3 ? '' : d + '.')), 500);
     return () => clearInterval(id);
   }, []);
 
@@ -43,17 +47,9 @@ function GeneratingOverlay() {
       const id = counterRef.current++;
       setVisibleWords((prev) => [
         ...prev.slice(-14),
-        {
-          id,
-          word,
-          x: 5 + Math.random() * 90,
-          y: 5 + Math.random() * 90,
-          delay: 0,
-          size: Math.random() > 0.6 ? 13 : 11,
-        },
+        { id, word, x: 5 + Math.random() * 90, y: 5 + Math.random() * 90, size: Math.random() > 0.6 ? 13 : 11 },
       ]);
     };
-
     add();
     const id = setInterval(add, 600);
     return () => clearInterval(id);
@@ -66,12 +62,7 @@ function GeneratingOverlay() {
           <span
             key={w.id}
             className="absolute font-semibold text-indigo-400/30 animate-float-word transition-all"
-            style={{
-              left: `${w.x}%`,
-              top: `${w.y}%`,
-              fontSize: w.size,
-              animationDuration: `${2.5 + Math.random() * 2}s`,
-            }}
+            style={{ left: `${w.x}%`, top: `${w.y}%`, fontSize: w.size, animationDuration: `${2.5 + Math.random() * 2}s` }}
           >
             {w.word}
           </span>
@@ -83,26 +74,34 @@ function GeneratingOverlay() {
           <Sparkles className="w-8 h-8 text-indigo-500 animate-pulse" />
         </div>
 
-        <h2 className="text-lg font-black text-slate-900 mb-1">
-          Gerando resumo{dots}
-        </h2>
+        <h2 className="text-lg font-black text-slate-900 mb-1">Gerando resumo{dots}</h2>
         <p className="text-sm text-slate-500 leading-relaxed mb-6">
           A IA está analisando seu currículo e extraindo as{' '}
-          <span className="text-indigo-600 font-semibold">competências, termos e requisitos de maior impacto</span>{' '}
+          <span className="text-indigo-600 font-semibold">
+            competências, termos e requisitos de maior impacto
+          </span>{' '}
           para o algoritmo da Gupy.
         </p>
 
-        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden mb-4">
           <div className="h-full bg-indigo-500 rounded-full animate-indeterminate" />
         </div>
 
-        <p className="text-[11px] text-slate-400 mt-4">
-          Isso pode levar alguns segundos.
-        </p>
+        <p className="text-[11px] text-slate-400 mb-5">Isso pode levar alguns segundos.</p>
+
+        <button
+          type="button"
+          onClick={onCancel}
+          className="text-[11px] font-semibold text-slate-400 hover:text-slate-600 underline underline-offset-2 transition-colors"
+        >
+          Cancelar
+        </button>
       </div>
     </div>
   );
 }
+
+// ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function Generate() {
   const navigate = useNavigate();
@@ -113,43 +112,43 @@ export default function Generate() {
 
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
+  const [error, setError] = useState<GupifyError | null>(null);
   const [success, setSuccess] = useState(false);
 
   const [generatedResult, setGeneratedResult] = useState<any | null>(null);
   const [editedSummary, setEditedSummary] = useState('');
+
+  const cancelledRef = useRef(false);
 
   const liveScore = useMemo(
     () => computeAtsScore(editedSummary, jobContent),
     [editedSummary, jobContent],
   );
 
-  const handleGenerate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Limpa erro de offline automaticamente ao reconectar
+  useEffect(() => {
+    if (error?.kind !== 'offline') return;
+    const handler = () => setError(null);
+    window.addEventListener('online', handler);
+    return () => window.removeEventListener('online', handler);
+  }, [error]);
 
-    if (!selectedCv) {
-      setError('Selecione ou envie um currículo antes de continuar.');
-      return;
-    }
-    if (!jobTitle.trim()) {
-      setError('Informe o título da vaga.');
-      return;
-    }
-    if (!jobContent.trim() || jobContent.trim().length < 50) {
-      setError('Cole a descrição completa da vaga (mínimo de 50 caracteres).');
-      return;
-    }
+  const runGeneration = async () => {
+    cancelledRef.current = false;
+    setGenerating(true);
+    setError(null);
+    setGeneratedResult(null);
 
     try {
-      setGenerating(true);
-      setError(null);
-      setGeneratedResult(null);
-
       const response = await generateApi.run({
         cvId: selectedCv.id,
         jobTitle: jobTitle.trim(),
         jobContent: jobContent.trim(),
+        cvName: selectedCv.name,
       });
+
+      if (cancelledRef.current) return;
 
       if (response?.summary) {
         setGeneratedResult(response);
@@ -157,11 +156,43 @@ export default function Generate() {
       } else {
         throw new Error('Resposta inválida da geração.');
       }
-    } catch {
-      setError('Erro ao gerar o resumo. Verifique sua conexão e tente novamente.');
+    } catch (err) {
+      if (cancelledRef.current) return;
+      setError(classifyError(err, 'generate'));
     } finally {
-      setGenerating(false);
+      if (!cancelledRef.current) setGenerating(false);
     }
+  };
+
+  const handleGenerate = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!selectedCv) {
+      setError({ kind: 'generic', message: 'Selecione ou envie um currículo antes de continuar.' });
+      return;
+    }
+    if (!jobTitle.trim()) {
+      setError({ kind: 'generic', message: 'Informe o título da vaga.' });
+      return;
+    }
+    if (!jobContent.trim() || jobContent.trim().length < 50) {
+      setError({ kind: 'generic', message: 'Cole a descrição completa da vaga (mínimo de 50 caracteres).' });
+      return;
+    }
+
+    await runGeneration();
+  };
+
+  const handleCancel = () => {
+    cancelledRef.current = true;
+    setGenerating(false);
+    setError(null);
+  };
+
+  const handleRetry = async () => {
+    setRetrying(true);
+    await runGeneration();
+    setRetrying(false);
   };
 
   const handleSave = async () => {
@@ -169,27 +200,27 @@ export default function Generate() {
     try {
       setSaving(true);
       setError(null);
-
       const reportId = generatedResult.reportId || generatedResult.id;
       await reportsApi.update(reportId, { summary: editedSummary });
-
       setSuccess(true);
       setTimeout(() => navigate(`/reports/${reportId}`), 900);
-    } catch {
-      setError('Erro ao salvar o relatório. Tente novamente.');
+    } catch (err) {
+      setError(classifyError(err, 'save'));
     } finally {
       setSaving(false);
     }
   };
 
-  if (generating) return <GeneratingOverlay />;
+  // ── Overlay ──
+  if (generating) return <GeneratingOverlay onCancel={handleCancel} />;
 
-  if (generatedResult && !generating) {
+  // ── Resultado ──
+  if (generatedResult) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 animate-fade-in">
         <div className="flex items-center gap-3 mb-6">
           <button
-            onClick={() => { setGeneratedResult(null); setEditedSummary(''); }}
+            onClick={() => { setGeneratedResult(null); setEditedSummary(''); setError(null); }}
             className="text-slate-400 hover:text-slate-700 transition-colors p-1"
             title="Voltar ao formulário"
           >
@@ -210,28 +241,21 @@ export default function Generate() {
         )}
 
         {error && (
-          <div className="mb-5 flex items-start gap-2.5 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-            {error}
+          <div className="mb-5">
+            <ErrorBanner error={error} onRetry={handleSave} onDismiss={() => setError(null)} />
           </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           <div className="lg:col-span-2 space-y-4">
-            <SummaryResult
-              summary={editedSummary}
-              onChange={setEditedSummary}
-              readOnly={false}
-            />
+            <SummaryResult summary={editedSummary} onChange={setEditedSummary} readOnly={false} />
             <KeywordBadges keywords={generatedResult.keywords} />
             <QualityChecklist summary={editedSummary} jobContent={jobContent} />
           </div>
 
           <div className="space-y-4">
             <div className="card bg-white border border-slate-100 rounded-xl p-4">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">
-                Ações
-              </p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Ações</p>
               <div className="space-y-2">
                 <button
                   type="button"
@@ -239,11 +263,7 @@ export default function Generate() {
                   disabled={saving}
                   className="btn-primary w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white"
                 >
-                  {saving ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Save className="w-4 h-4" />
-                  )}
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   Salvar relatório
                 </button>
 
@@ -253,6 +273,7 @@ export default function Generate() {
                     if (confirm('Refazer a geração? As edições manuais serão perdidas.')) {
                       setGeneratedResult(null);
                       setEditedSummary('');
+                      setError(null);
                     }
                   }}
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
@@ -272,6 +293,7 @@ export default function Generate() {
     );
   }
 
+  // ── Formulário ──
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 animate-fade-in">
       <div className="mb-8">
@@ -282,17 +304,22 @@ export default function Generate() {
       </div>
 
       {error && (
-        <div className="mb-6 flex items-start gap-2.5 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-          {error}
+        <div className="mb-6">
+          <ErrorBanner
+            error={error}
+            onRetry={
+              selectedCv && jobTitle.trim() && jobContent.trim().length >= 50 && error.kind !== 'generic'
+                ? handleRetry
+                : undefined
+            }
+            retrying={retrying}
+            onDismiss={() => setError(null)}
+          />
         </div>
       )}
 
       <form onSubmit={handleGenerate} className="space-y-5">
-        <CvUploader
-          selectedCvId={selectedCv?.id ?? null}
-          onSelectCv={setSelectedCv}
-        />
+        <CvUploader selectedCvId={selectedCv?.id ?? null} onSelectCv={setSelectedCv} />
 
         <div className="card bg-white border border-slate-100 rounded-xl p-5">
           <h2 className="flex items-center gap-2 text-[13px] font-bold text-slate-900 mb-4">
@@ -354,5 +381,3 @@ export default function Generate() {
     </div>
   );
 }
-
-

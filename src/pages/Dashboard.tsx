@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom';
 import { reports as reportsApi, cv as cvApi } from '../services/api';
 import { useSession } from '../context/SessionContext';
 import { computeAtsScore, formatReportDate, getReportUpdatedAt } from '../utils/report';
+import { classifyError } from '../utils/errors';
+import ErrorBanner from '../components/ErrorBanner';
+import type { GupifyError } from '../utils/errors';
 import {
   LayoutDashboard,
   PlusCircle,
@@ -11,7 +14,6 @@ import {
   Trash2,
   Calendar,
   FileSignature,
-  AlertCircle,
   Clock,
   Sparkles,
   Loader2,
@@ -30,8 +32,9 @@ export default function Dashboard() {
   const [reportsList, setReportsList] = useState<any[]>([]);
   const [cvsCount, setCvsCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<GupifyError | null>(null);
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<{ id: string; error: GupifyError } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [scoreFilter, setScoreFilter] = useState<ScoreFilter>('all');
   const [versionsFilter, setVersionsFilter] = useState<VersionsFilter>('all');
@@ -41,39 +44,41 @@ export default function Dashboard() {
     try {
       setLoading(true);
       setError(null);
-
       const [reportsData, cvsData] = await Promise.all([
         reportsApi.list(),
         cvApi.list(),
       ]);
-
       setReportsList(reportsData || []);
       setCvsCount(cvsData ? cvsData.length : 0);
     } catch (err) {
-      console.error('Error loading dashboard data:', err);
-      setError('Ocorreu um erro ao carregar seus relatórios. Certifique-se de que a sessão está ativa.');
+      setError(classifyError(err, 'load'));
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => { loadDashboardData(); }, []);
+
+  // Limpa erro de offline automaticamente ao reconectar
   useEffect(() => {
-    loadDashboardData();
-  }, []);
+    if (error?.kind !== 'offline') return;
+    const handler = () => loadDashboardData();
+    window.addEventListener('online', handler);
+    return () => window.removeEventListener('online', handler);
+  }, [error]);
 
   const handleDeleteReport = async (e: React.MouseEvent, id: string) => {
     e.preventDefault();
-    if (!confirm('Tem certeza que deseja excluir este relatório permanentemente?')) {
-      return;
-    }
+    if (!confirm('Tem certeza que deseja excluir este relatório permanentemente?')) return;
 
     try {
       setDeleteLoading(id);
+      setDeleteError(null);
       await reportsApi.remove(id);
       setReportsList((prev) => prev.filter((r) => r.id !== id));
     } catch (err) {
-      console.error('Error deleting report:', err);
-      alert('Não foi possível excluir o relatório selecionado.');
+      // Erro de delete aparece inline no card, não substitui o erro de carregamento
+      setDeleteError({ id, error: classifyError(err, 'delete') });
     } finally {
       setDeleteLoading(null);
     }
@@ -104,7 +109,6 @@ export default function Dashboard() {
           .filter(Boolean)
           .join(' ')
           .toLowerCase();
-
         if (!haystack.includes(normalizedSearch)) return false;
       }
 
@@ -119,7 +123,6 @@ export default function Dashboard() {
       if (dateFilter !== 'all') {
         const reportTime = report.referenceDate ? new Date(report.referenceDate).getTime() : 0;
         if (!reportTime) return false;
-
         const diffDays = (now.getTime() - reportTime) / (1000 * 60 * 60 * 24);
         if (dateFilter === 'today' && diffDays >= 1) return false;
         if (dateFilter === 'last7' && diffDays > 7) return false;
@@ -129,16 +132,15 @@ export default function Dashboard() {
       return true;
     });
 
-    const sorted = [...filtered].sort((a, b) => {
+    return [...filtered].sort((a, b) => {
       const dateA = a.referenceDate ? new Date(a.referenceDate).getTime() : 0;
       const dateB = b.referenceDate ? new Date(b.referenceDate).getTime() : 0;
       return dateB - dateA;
     });
-
-    return sorted;
   }, [enhancedReports, searchQuery, scoreFilter, versionsFilter, dateFilter]);
 
-  const hasActiveFilters = searchQuery.trim() || scoreFilter !== 'all' || versionsFilter !== 'all' || dateFilter !== 'all';
+  const hasActiveFilters =
+    searchQuery.trim() || scoreFilter !== 'all' || versionsFilter !== 'all' || dateFilter !== 'all';
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -216,10 +218,23 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Erro de carregamento geral — com retry */}
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-2xl text-sm flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 mt-0.5 shrink-0" />
-          <span>{error}</span>
+        <div className="mb-6">
+          <ErrorBanner
+            error={error}
+            onRetry={loadDashboardData}
+          />
+        </div>
+      )}
+
+      {/* Erro de delete — aparece separado para não esconder o painel inteiro */}
+      {deleteError && (
+        <div className="mb-4">
+          <ErrorBanner
+            error={deleteError.error}
+            onDismiss={() => setDeleteError(null)}
+          />
         </div>
       )}
 
@@ -229,7 +244,6 @@ export default function Dashboard() {
             <FileSignature className="w-5 h-5 text-gray-500" />
             Histórico de Relatórios
           </h2>
-
         </div>
 
         {!loading && reportsList.length > 0 && (
@@ -244,7 +258,6 @@ export default function Dashboard() {
                   className="w-full bg-transparent outline-none text-sm text-slate-700 placeholder:text-slate-400"
                 />
               </label>
-
               <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                 <SlidersHorizontal className="w-3.5 h-3.5" />
                 Filtros avançados
@@ -296,9 +309,9 @@ export default function Dashboard() {
 
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-1">
               <p className="text-xs text-slate-500">
-                Mostrando <span className="font-bold text-slate-800">{visibleReports.length}</span> de <span className="font-bold text-slate-800">{reportsList.length}</span> relatórios.
+                Mostrando <span className="font-bold text-slate-800">{visibleReports.length}</span> de{' '}
+                <span className="font-bold text-slate-800">{reportsList.length}</span> relatórios.
               </p>
-
               {hasActiveFilters && (
                 <button
                   type="button"
@@ -328,7 +341,7 @@ export default function Dashboard() {
             </h3>
             <p className="text-sm text-gray-500 max-w-md mt-1.5 mb-6">
               {reportsList.length === 0
-                ? 'Você ainda não tem relatórios de otimização de currículo salvos nesta sessão. Cole os dados da vaga e comece o ranqueamento automatizado.'
+                ? 'Você ainda não tem relatórios de otimização salvos nesta sessão. Cole os dados da vaga e comece o ranqueamento automatizado.'
                 : 'Tente limpar a busca ou alterar os filtros avançados para visualizar outros relatórios desta sessão.'}
             </p>
             <Link
@@ -404,14 +417,12 @@ export default function Dashboard() {
                         className="p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all border border-transparent hover:border-red-100"
                         title="Excluir relatório"
                       >
-                        {deleteLoading === report.id ? (
-                          <Loader2 className="w-4.5 h-4.5 animate-spin" />
-                        ) : (
-                          <Trash2 className="w-4.5 h-4.5" />
-                        )}
+                        {deleteLoading === report.id
+                          ? <Loader2 className="w-4.5 h-4.5 animate-spin" />
+                          : <Trash2 className="w-4.5 h-4.5" />
+                        }
                       </button>
-
-                      <div className="p-2 text-indigo-600 bg-indigo-50 group-hover:bg-indigo-600 group-hover:text-white rounded-xl transition-all">
+                      <div className="p-2 text-indigo-600 bg-indigo-50 rounded-xl">
                         <ChevronRight className="w-5 h-5" />
                       </div>
                     </div>
@@ -425,5 +436,3 @@ export default function Dashboard() {
     </div>
   );
 }
-
-

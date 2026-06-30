@@ -1,6 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { reports as reportsApi } from '../services/api';
+import { classifyError } from '../utils/errors';
+import ErrorBanner from '../components/ErrorBanner';
+import type { GupifyError } from '../utils/errors';
 import SummaryResult from '../components/SummaryResult';
 import KeywordBadges from '../components/KeywordBadges';
 import QualityChecklist from '../components/QualityChecklist';
@@ -13,14 +16,13 @@ import {
   Save,
   Download,
   Clock,
-  AlertCircle,
   Loader2,
   Trash2,
   CheckCircle2,
   Briefcase,
 } from 'lucide-react';
 
-// 🔒 FIX #1 (Crítico): Sanitização contra XSS no document.write
+// 🔒 Sanitização contra XSS no document.write
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, '&amp;')
@@ -36,10 +38,13 @@ export default function Report() {
 
   const [report, setReport] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<GupifyError | null>(null);
   const [editedSummary, setEditedSummary] = useState('');
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<GupifyError | null>(null);
   const [regenerating, setRegenerating] = useState(false);
+  const [regenError, setRegenError] = useState<GupifyError | null>(null);
+  const [deleteError, setDeleteError] = useState<GupifyError | null>(null);
   const [actionSuccess, setActionSuccess] = useState('');
 
   const liveScore = useMemo(
@@ -51,38 +56,47 @@ export default function Report() {
     if (!id) return;
     try {
       setLoading(true);
-      setError(null);
+      setLoadError(null);
       const data = await reportsApi.get(id);
       if (data) {
         setReport(data);
         setEditedSummary(data.summary || '');
       } else {
-        throw new Error('Relatório não encontrado.');
+        throw new Error('not found');
       }
-    } catch {
-      setError('Não foi possível carregar o relatório. Ele pode ter sido excluído ou a sessão expirou.');
+    } catch (err) {
+      setLoadError(classifyError(err, 'load'));
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => { loadReport(); }, [id]);
+
+  // Limpa erro de offline automaticamente ao reconectar
   useEffect(() => {
-    loadReport();
-  }, [id]);
+    if (loadError?.kind !== 'offline') return;
+    const handler = () => loadReport();
+    window.addEventListener('online', handler);
+    return () => window.removeEventListener('online', handler);
+  }, [loadError]);
+
+  const showSuccess = (msg: string) => {
+    setActionSuccess(msg);
+    setTimeout(() => setActionSuccess(''), 3000);
+  };
 
   const handleSave = async () => {
     if (!id) return;
     try {
       setSaving(true);
-      setError(null);
-      setActionSuccess('');
+      setSaveError(null);
       const updated = await reportsApi.update(id, { summary: editedSummary });
       setReport(updated);
       setEditedSummary(updated.summary);
-      setActionSuccess('Alterações salvas!');
-      setTimeout(() => setActionSuccess(''), 3000);
-    } catch {
-      setError('Não foi possível salvar as alterações.');
+      showSuccess('Alterações salvas!');
+    } catch (err) {
+      setSaveError(classifyError(err, 'save'));
     } finally {
       setSaving(false);
     }
@@ -93,15 +107,13 @@ export default function Report() {
     if (!confirm('Gerar uma nova versão com IA? A atual será arquivada no histórico.')) return;
     try {
       setRegenerating(true);
-      setError(null);
-      setActionSuccess('');
+      setRegenError(null);
       const regenerated = await reportsApi.regenerate(id);
       setReport(regenerated);
       setEditedSummary(regenerated.summary);
-      setActionSuccess('Novo resumo gerado!');
-      setTimeout(() => setActionSuccess(''), 3000);
-    } catch {
-      setError('Falha ao regenerar o resumo.');
+      showSuccess('Novo resumo gerado!');
+    } catch (err) {
+      setRegenError(classifyError(err, 'generate'));
     } finally {
       setRegenerating(false);
     }
@@ -111,19 +123,18 @@ export default function Report() {
     if (!id) return;
     if (!confirm('Excluir este relatório definitivamente?')) return;
     try {
-      setError(null);
+      setDeleteError(null);
       await reportsApi.remove(id);
       navigate('/dashboard');
-    } catch {
-      setError('Não foi possível excluir o relatório.');
+    } catch (err) {
+      setDeleteError(classifyError(err, 'delete'));
     }
   };
 
   const handleRestoreVersion = (versionSummary: string) => {
     if (confirm('Carregar esta versão no editor?')) {
       setEditedSummary(versionSummary);
-      setActionSuccess('Versão carregada. Clique em "Salvar" para fixá-la.');
-      setTimeout(() => setActionSuccess(''), 4000);
+      showSuccess('Versão carregada. Clique em "Salvar" para fixá-la.');
     }
   };
 
@@ -135,8 +146,6 @@ export default function Report() {
       return;
     }
 
-    // 🔒 FIX #1 (Crítico): Todos os campos interpolados agora passam por escapeHtml
-    // antes de serem escritos via document.write, prevenindo XSS
     const kws = (report.keywords || [])
       .map((k: string) => `<li>#${escapeHtml(k)}</li>`)
       .join('');
@@ -173,6 +182,7 @@ export default function Report() {
     w.document.close();
   };
 
+  // ── Estados de carregamento / erro total ──
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] p-8">
@@ -182,19 +192,22 @@ export default function Report() {
     );
   }
 
-  if (error || !report) {
+  if (loadError || !report) {
     return (
-      <div className="max-w-md mx-auto text-center py-16 px-4">
-        <AlertCircle className="w-14 h-14 text-red-400 mx-auto mb-4" />
-        <h2 className="text-lg font-bold text-slate-900">Erro ao carregar</h2>
-        <p className="text-sm text-slate-500 mt-2">{error || 'Relatório não encontrado.'}</p>
-        <Link
-          to="/dashboard"
-          className="mt-6 inline-flex items-center gap-1.5 px-4 py-2 btn-primary text-white font-semibold rounded-xl text-sm"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Voltar ao painel
-        </Link>
+      <div className="max-w-md mx-auto py-16 px-4 space-y-4">
+        <ErrorBanner
+          error={loadError ?? { kind: 'not_found', message: 'Relatório não encontrado.' }}
+          onRetry={loadError?.kind !== 'not_found' ? loadReport : undefined}
+        />
+        <div className="text-center">
+          <Link
+            to="/dashboard"
+            className="inline-flex items-center gap-1.5 px-4 py-2 btn-primary text-white font-semibold rounded-xl text-sm"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Voltar ao painel
+          </Link>
+        </div>
       </div>
     );
   }
@@ -254,16 +267,39 @@ export default function Report() {
         </div>
       </div>
 
+      {/* Feedbacks de ação */}
       {actionSuccess && (
         <div className="mb-5 flex items-center gap-2.5 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-700 animate-fade-in">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
           {actionSuccess}
         </div>
       )}
-      {error && (
-        <div className="mb-5 flex items-start gap-2.5 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-          {error}
+
+      {/* Erros específicos por ação — cada um com seu contexto */}
+      {saveError && (
+        <div className="mb-4">
+          <ErrorBanner
+            error={saveError}
+            onRetry={handleSave}
+            onDismiss={() => setSaveError(null)}
+          />
+        </div>
+      )}
+      {regenError && (
+        <div className="mb-4">
+          <ErrorBanner
+            error={regenError}
+            onRetry={handleRegenerate}
+            onDismiss={() => setRegenError(null)}
+          />
+        </div>
+      )}
+      {deleteError && (
+        <div className="mb-4">
+          <ErrorBanner
+            error={deleteError}
+            onDismiss={() => setDeleteError(null)}
+          />
         </div>
       )}
 
@@ -280,9 +316,7 @@ export default function Report() {
 
         <div className="space-y-5 lg:sticky lg:top-6 self-start">
           <div className="card bg-white border border-slate-100 rounded-xl p-4">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">
-              Controles
-            </p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Controles</p>
             <div className="space-y-2">
               <button
                 onClick={handleSave}
@@ -302,11 +336,10 @@ export default function Report() {
                 disabled={saving || regenerating}
                 className="btn-primary w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white flex items-center justify-center gap-2 disabled:opacity-70"
               >
-                {regenerating ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-3.5 h-3.5" />
-                )}
+                {regenerating
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <RefreshCw className="w-3.5 h-3.5" />
+                }
                 {regenerating ? 'Regenerando...' : 'Regenerar com IA'}
               </button>
             </div>
@@ -340,9 +373,7 @@ export default function Report() {
                       key={idx}
                       onClick={() => handleRestoreVersion(ver.summary)}
                       className={`w-full text-left p-2.5 rounded-xl border transition-all hover:bg-indigo-50/30 ${
-                        isCurrent
-                          ? 'border-indigo-300 bg-indigo-50/40'
-                          : 'border-slate-100 bg-white'
+                        isCurrent ? 'border-indigo-300 bg-indigo-50/40' : 'border-slate-100 bg-white'
                       }`}
                     >
                       <div className="flex items-center justify-between text-[10px] mb-1 gap-2">
@@ -353,9 +384,7 @@ export default function Report() {
                           {formatReportDate(getVersionDate(ver))}
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
-                        {ver.summary}
-                      </p>
+                      <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">{ver.summary}</p>
                     </button>
                   );
                 })}
