@@ -4,6 +4,7 @@ import { generate as generateApi, reports as reportsApi } from '../services/api'
 import { computeAtsScore } from '../utils/report';
 import { classifyError } from '../utils/errors';
 import type { GupifyError } from '../utils/errors';
+import { ensureNotificationPermission, notifyIfInBackground } from '../utils/notifications';
 import ErrorBanner from '../components/ErrorBanner';
 import CvUploader from '../components/CvUploader';
 import SummaryResult from '../components/SummaryResult';
@@ -153,12 +154,23 @@ export default function Generate() {
       if (response?.summary) {
         setGeneratedResult(response);
         setEditedSummary(response.summary);
+        notifyIfInBackground({
+          title: 'Currículo otimizado!',
+          body: jobTitle.trim()
+            ? `O resumo para "${jobTitle.trim()}" já está pronto. Volte pra conferir e salvar.`
+            : 'Seu resumo já está pronto. Volte pra conferir e salvar.',
+        });
       } else {
         throw new Error('Resposta inválida da geração.');
       }
     } catch (err) {
       if (cancelledRef.current) return;
-      setError(classifyError(err, 'generate'));
+      const classified = classifyError(err, 'generate');
+      setError(classified);
+      notifyIfInBackground({
+        title: 'Erro ao gerar currículo',
+        body: classified.message,
+      });
     } finally {
       if (!cancelledRef.current) setGenerating(false);
     }
@@ -166,6 +178,11 @@ export default function Generate() {
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Pede a permissão de notificação aqui (dentro do clique do usuário,
+    // antes de qualquer await) pra não ser bloqueada pelo navegador.
+    // Não precisa aguardar — o fluxo de geração não depende disso.
+    ensureNotificationPermission();
 
     if (!selectedCv) {
       setError({ kind: 'generic', message: 'Selecione ou envie um currículo antes de continuar.' });

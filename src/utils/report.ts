@@ -35,6 +35,21 @@ export function computeAtsScore(summary: string, jobContent: string): number {
   return Math.min(score, 100);
 }
 
+/** Tenta obter o timezone do navegador, mas fallback para America/Sao_Paulo */
+function resolveTimezone(): string {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz && tz !== 'UTC' && tz !== 'Etc/UTC' && tz !== 'Etc/GMT') {
+      return tz;
+    }
+  } catch {
+    // ignorado — fallback abaixo
+  }
+  return 'America/Sao_Paulo';
+}
+
+const DEFAULT_TZ = resolveTimezone();
+
 export function formatReportDate(date?: string | null) {
   if (!date) return 'Data recente';
 
@@ -47,7 +62,7 @@ export function formatReportDate(date?: string | null) {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    timeZone: DEFAULT_TZ,
   }).format(parsedDate);
 }
 
