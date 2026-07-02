@@ -45,10 +45,18 @@ function AppShell() {
 export default function App() {
   return (
     <SessionProvider>
-      <BrowserRouter>
+      {/*
+        basename="/gupify-web" — o site é publicado em uma subpasta no
+        GitHub Pages (https://otavio2704.github.io/gupify-web/), não na raiz
+        do domínio. Sem isso, o React Router monta as rotas internas
+        (/dashboard, /generate, etc.) a partir da raiz do domínio, gerando
+        links e navegações incorretos como "otavio2704.github.io/dashboard"
+        em vez de ".../gupify-web/dashboard" — o que causa 404 tanto ao
+        navegar quanto ao recarregar a página.
+      */}
+      <BrowserRouter basename="/gupify-web">
         <AppShell />
       </BrowserRouter>
     </SessionProvider>
   );
 }
-
