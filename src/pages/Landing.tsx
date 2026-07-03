@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useSession } from '../context/SessionContext';
 import { GUPIFY_LOGO } from '../utils/assets';
 import {
@@ -303,7 +303,7 @@ export default function Landing() {
             <div className="gradientBorderCard-12 lg:col-span-5 p-6 shadow-sm flex flex-col justify-between">
               <div>
                 <span className="text-[9px] uppercase font-extrabold tracking-wider text-amber-600 block mb-1">Campo subestimado</span>
-                <h3 className="text-lg font-bold text-gray-950">O “Sobre você” costuma ficar fraco</h3>
+                <h3 className="text-lg font-bold text-gray-950">O "Sobre você" costuma ficar fraco</h3>
                 <p className="text-gray-500 text-xs mt-2 leading-relaxed">
                   Esse campo de até 1.500 caracteres é uma chance enorme de contextualizar sua trajetória. Quando ele fica vazio, genérico ou curto demais, a plataforma tem menos evidências para conectar seu perfil à vaga.
                 </p>
@@ -318,7 +318,7 @@ export default function Landing() {
                 <span className="text-[9px] uppercase font-extrabold tracking-wider text-indigo-600 block mb-1">Texto sem direção</span>
                 <h3 className="text-lg font-bold text-gray-950">Clichês não provam aderência</h3>
                 <p className="text-gray-500 text-xs mt-2 leading-relaxed">
-                  Frases como “sou proativo”, “aprendo rápido” e “busco desafios” dizem pouco. O algoritmo e o recrutador precisam de evidências: atividades, ferramentas, indicadores, contexto de negócio e conquistas.
+                  Frases como "sou proativo", "aprendo rápido" e "busco desafios" dizem pouco. O algoritmo e o recrutador precisam de evidências: atividades, ferramentas, indicadores, contexto de negócio e conquistas.
                 </p>
               </div>
               <div className="mt-6 pt-3 border-t border-gray-100 text-[10px] text-indigo-600 font-bold">
@@ -331,7 +331,7 @@ export default function Landing() {
                 <span className="text-[9px] uppercase font-extrabold tracking-wider text-rose-600 block mb-1">Desalinhamento semântico</span>
                 <h3 className="text-xl font-black text-gray-950">A vaga fala uma língua, seu perfil fala outra</h3>
                 <p className="text-gray-500 text-xs mt-3 leading-relaxed">
-                  “Atendimento ao cliente”, “customer success”, “suporte ao usuário” e “relacionamento com contas” podem estar ligados, mas precisam aparecer de forma estratégica. O mesmo vale para finanças, marketing, RH, operações, saúde, vendas, produto e tecnologia.
+                  "Atendimento ao cliente", "customer success", "suporte ao usuário" e "relacionamento com contas" podem estar ligados, mas precisam aparecer de forma estratégica. O mesmo vale para finanças, marketing, RH, operações, saúde, vendas, produto e tecnologia.
                 </p>
               </div>
               <div className="mt-8 pt-4 border-t border-gray-100 flex items-center justify-between text-xs font-semibold text-rose-600">
@@ -465,9 +465,9 @@ export default function Landing() {
             </div>
 
             <div className="flex space-x-6 text-xs font-semibold">
-              <a href="/guia" className="hover:text-white transition-colors">Guia de Sobrevivência</a>
-              <a href="/checklist" className="hover:text-white transition-colors">Checklist do Candidato</a>
-              <a href="/generate" className="hover:text-white transition-colors">Otimizador</a>
+              <Link to="/guia" className="hover:text-white transition-colors">Guia de Sobrevivência</Link>
+              <Link to="/checklist" className="hover:text-white transition-colors">Checklist do Candidato</Link>
+              <Link to="/generate" className="hover:text-white transition-colors">Otimizador</Link>
             </div>
           </div>
 
@@ -481,5 +481,3 @@ export default function Landing() {
     </div>
   );
 }
-
-
