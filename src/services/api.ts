@@ -25,7 +25,7 @@ export const isUsingMock = () => useMock;
 const triggerMockMode = () => {
   if (!useMock) {
     useMock = true;
-    console.warn(`[Gupify API] Conexão com ${API_BASE_URL} falhou. Ativando Modo Simulador Local (localStorage) para fins de demonstração.`);
+    console.warn(`[Gupify API] Conexão com ${API_BASE_URL} falhou. Ativando Modo Simulador Local (sessionStorage) para fins de demonstração.`);
     if (onMockStateChange) onMockStateChange(true);
   }
 };
@@ -98,12 +98,12 @@ const apiFetch = async (path: string, options: RequestInit = {}) => {
 };
 
 const getLocalData = (key: string, defaultValue: any) => {
-  const data = localStorage.getItem(key);
+  const data = sessionStorage.getItem(key);
   return data ? JSON.parse(data) : defaultValue;
 };
 
 const setLocalData = (key: string, data: any) => {
-  localStorage.setItem(key, JSON.stringify(data));
+  sessionStorage.setItem(key, JSON.stringify(data));
 };
 
 const REPORT_CACHE_KEY = 'gupify_report_cache';
@@ -143,7 +143,7 @@ const mergeWithCachedReport = (report: any) => {
   if (!cached) return normalized;
 
   // FIX: jobContent agora vem do back (jobDescriptionContent no DTO).
-  // O merge ainda serve como fallback para dados mais completos em localStorage
+  // O merge ainda serve como fallback para dados mais completos em sessionStorage
   // (ex: cvName que o back não persiste).
   const hasJobTitle = !!(report?.jobDescriptionTitle || report?.jobTitle);
   const hasJobContent = !!(report?.jobDescriptionContent || report?.jobContent);
@@ -189,7 +189,7 @@ const buildVersions = (currentReport: any, nextSummary: string) => {
 };
 
 const initMockDB = () => {
-  if (!localStorage.getItem('gupify_mock_cvs')) {
+  if (!sessionStorage.getItem('gupify_mock_cvs')) {
     setLocalData('gupify_mock_cvs', [
       {
         id: 'cv-1',
@@ -199,7 +199,7 @@ const initMockDB = () => {
       },
     ]);
   }
-  if (!localStorage.getItem('gupify_mock_reports')) {
+  if (!sessionStorage.getItem('gupify_mock_reports')) {
     setLocalData('gupify_mock_reports', []);
   }
 };
@@ -441,7 +441,7 @@ export const reports = {
       const res = await apiFetch(`/api/reports/${id}`);
       const r = await res.json();
       // FIX: jobDescriptionContent já vem no response, mergeWithCachedReport
-      // complementa com cvName e versions do localStorage quando disponíveis.
+      // complementa com cvName e versions do sessionStorage quando disponíveis.
       const merged = mergeWithCachedReport(r);
       const localList = getLocalData('gupify_mock_reports', []);
       const localFound = localList.find((item: any) => item.id === id);

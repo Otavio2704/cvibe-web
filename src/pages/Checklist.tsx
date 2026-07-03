@@ -52,10 +52,10 @@ const LS_KEY = 'gupify_checklist_v2';
 export default function Checklist() {
   const [checked, setChecked] = useState<Record<string, boolean>>({});
 
-  /* Persiste no localStorage */
+  /* Persiste no sessionStorage */
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(LS_KEY);
+      const saved = sessionStorage.getItem(LS_KEY);
       if (saved) setChecked(JSON.parse(saved));
     } catch { /* ignore */ }
   }, []);
@@ -64,7 +64,7 @@ export default function Checklist() {
     setChecked((prev) => {
       const next = { ...prev, [id]: !prev[id] };
       if (!next[id]) delete next[id];
-      localStorage.setItem(LS_KEY, JSON.stringify(next));
+      sessionStorage.setItem(LS_KEY, JSON.stringify(next));
       return next;
     });
   };
@@ -72,7 +72,7 @@ export default function Checklist() {
   const handleClear = () => {
     if (!confirm('Limpar todos os itens marcados?')) return;
     setChecked({});
-    localStorage.removeItem(LS_KEY);
+    sessionStorage.removeItem(LS_KEY);
   };
 
   const allItems  = SECTIONS.flatMap((s) => s.items);
@@ -108,7 +108,7 @@ export default function Checklist() {
         />
       </div>
       <div className="flex items-center justify-between mb-8">
-        <p className="text-[10px] text-slate-400">Progresso salvo automaticamente no navegador.</p>
+        <p className="text-[10px] text-slate-400">Progresso salvo automaticamente enquanto a aba estiver aberta.</p>
         <button
           onClick={handleClear}
           className="flex items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-red-500 transition-colors"
@@ -200,4 +200,3 @@ export default function Checklist() {
     </div>
   );
 }
-
