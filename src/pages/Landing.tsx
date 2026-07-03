@@ -206,7 +206,7 @@ export default function Landing() {
 
               <div className="mt-4 flex items-center text-[10px] tracking-wider uppercase font-bold text-gray-400 gap-1.5 lg:ml-[clamp(0px,3vw,44px)]">
                 <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Sessão temporária segura — nada é armazenado de forma permanente</span>
+                <span>Sessão anônima — seus dados ficam apenas no seu dispositivo</span>
               </div>
             </div>
 
