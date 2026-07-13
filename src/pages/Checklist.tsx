@@ -11,7 +11,7 @@ const SECTIONS: Section[] = [
     title: 'Fase 1 — Cadastro e Perfil Geral',
     items: [
       { id: 'p1', text: 'Título profissional alinhado ao cargo pretendido (ex: "Analista Financeiro Pleno" em vez de "Profissional Administrativo")' },
-      { id: 'p2', text: 'Resumo "Sobre você" otimizado pelo Gupify (800–1.400 caracteres)' },
+      { id: 'p2', text: 'Resumo "Sobre você" otimizado pelo CVibe (800–1.400 caracteres)' },
       { id: 'p3', text: 'Contato atualizado — telefone, e-mail, LinkedIn e portfólio quando fizer sentido' },
       { id: 'p4', text: 'Tags de competências, ferramentas e conhecimentos selecionadas batem com os requisitos da vaga' },
       { id: 'p5', text: 'Pretensão salarial e áreas de interesse preenchidos corretamente' },
@@ -47,7 +47,7 @@ const SECTIONS: Section[] = [
   },
 ];
 
-const LS_KEY = 'gupify_checklist_v2';
+const LS_KEY = 'cvibe_checklist_v2';
 
 export default function Checklist() {
   const [checked, setChecked] = useState<Record<string, boolean>>({});
@@ -88,7 +88,7 @@ export default function Checklist() {
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">Checklist</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Acompanhe cada etapa da otimização do seu perfil na Gupy.
+            Acompanhe cada etapa da otimização do seu perfil para o processo seletivo.
           </p>
         </div>
         <div className="text-center shrink-0">
@@ -193,7 +193,7 @@ export default function Checklist() {
           <Award className="w-10 h-10 mx-auto mb-2" />
           <h3 className="text-lg font-black">Checklist completo!</h3>
           <p className="text-xs text-emerald-100 mt-1 max-w-sm mx-auto">
-            Você aplicou todas as boas práticas para se destacar no ranqueamento da Gupy. Boa sorte no processo seletivo!
+            Você aplicou todas as boas práticas para se destacar no ranqueamento dos sistemas de triagem. Boa sorte no processo seletivo!
           </p>
         </div>
       )}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSession } from '../context/SessionContext';
-import { GUPIFY_LOGO } from '../utils/assets';
+import { CVIBE_LOGO } from '../utils/assets';
 import {
   Sparkles,
   ArrowRight,
@@ -162,7 +162,7 @@ export default function Landing() {
               <h1 className="text-4xl sm:text-6xl lg:text-[4rem] xl:text-[4.5rem] font-black text-gray-900 tracking-tight leading-[0.92] text-left lg:ml-[clamp(0px,3vw,44px)]">
                 Não seja descartado pelo
                 <span className="block text-3xl sm:text-5xl lg:text-[3.15rem] xl:text-[3.55rem] font-normal text-gray-500 tracking-normal mt-1.5 leading-tight">
-                  Algoritmo da Gupy.
+                  Algoritmo de Triagem.
                 </span>
                 <span className="block mt-2 text-5xl sm:text-7xl lg:text-[4.75rem] xl:text-[5.4rem] bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent tracking-tighter font-extrabold leading-none">
                   Otimizar.
@@ -170,7 +170,7 @@ export default function Landing() {
               </h1>
 
               <p className="mt-4 text-sm sm:text-base text-gray-600 leading-relaxed max-w-lg lg:ml-[clamp(0px,3vw,44px)] font-normal">
-                A IA da Gupy filtra a maioria dos candidatos automaticamente. Nossa ferramenta reestrutura seu perfil usando inteligência semântica no limite ideal de 1.500 caracteres.
+A IA das plataformas de recrutamento filtra a maioria dos candidatos automaticamente. Nossa ferramenta reestrutura seu perfil usando inteligência semântica no limite ideal de 1.500 caracteres.
               </p>
 
               <p className="mt-2 text-xs text-indigo-700 italic font-light lg:ml-[clamp(0px,3vw,44px)]">
@@ -222,7 +222,7 @@ export default function Landing() {
                       <span className="w-3 h-3 rounded-full bg-amber-500/80"></span>
                       <span className="w-3 h-3 rounded-full bg-emerald-500/80"></span>
                     </div>
-                    <span className="text-[9px] font-mono tracking-widest text-indigo-400 uppercase font-bold">Gupify-Engine v2.6 // Active</span>
+                    <span className="text-[9px] font-mono tracking-widest text-indigo-400 uppercase font-bold">CVibe-Engine v2.6 // Active</span>
                   </div>
 
                   <div className="p-5 space-y-4 font-mono text-[11px] text-gray-300">
@@ -236,7 +236,7 @@ export default function Landing() {
 
                     <div className="space-y-1.5">
                       <div className="flex justify-between items-center text-[9px] uppercase font-bold text-indigo-500 tracking-wider">
-                        <span>OUTPUT_GUPY_OPTIMIZED</span>
+                        <span>OUTPUT_ATS_OPTIMIZED</span>
                       </div>
 
                       <div className="p-3 bg-black/80 border border-gray-800 rounded-xl leading-relaxed text-gray-300 min-h-[132px]">
@@ -344,10 +344,10 @@ export default function Landing() {
           <div className="mb-10 max-w-3xl">
             <span className="text-[10px] uppercase font-bold tracking-widest text-indigo-600 block mb-2">Depois: o que a plataforma faz</span>
             <h2 className="text-2xl sm:text-4xl font-black text-gray-900 tracking-tight">
-              O Gupify transforma sua experiência em um resumo direcionado para a vaga
+              O CVibe transforma sua experiência em um resumo direcionado para a vaga
             </h2>
             <p className="text-gray-500 text-xs sm:text-sm mt-2 max-w-2xl font-normal leading-relaxed">
-              Você informa o currículo e a descrição da vaga. A plataforma identifica o que mais importa, organiza seu texto e entrega um resumo pronto para revisar e colar no cadastro da Gupy.
+              Você informa o currículo e a descrição da vaga. A plataforma identifica o que mais importa, organiza seu texto e entrega um resumo pronto para revisar e colar no cadastro do processo seletivo.
             </p>
           </div>
 
@@ -389,7 +389,7 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
             <span className="text-xs uppercase font-extrabold tracking-widest text-indigo-600">Simples &amp; Rápido</span>
-            <h2 className="text-3xl font-black text-gray-900 mt-2">Como funciona o Gupify?</h2>
+            <h2 className="text-3xl font-black text-gray-900 mt-2">Como funciona o CVibe?</h2>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -429,7 +429,7 @@ export default function Landing() {
               </div>
               <h4 className="font-bold text-gray-900 text-sm">Publique no Cadastro</h4>
               <p className="text-xs text-gray-500 mt-2 leading-relaxed font-normal">
-                Copie o texto pronto e cole diretamente no campo &quot;Sobre você&quot; da plataforma Gupy.
+                Copie o texto pronto e cole diretamente no campo &quot;Sobre você&quot; da plataforma de vagas usada no processo seletivo.
               </p>
             </div>
           </div>
@@ -453,14 +453,14 @@ export default function Landing() {
             <div>
               <div className="flex items-center justify-start space-x-2">
                 <img
-                  src={GUPIFY_LOGO}
-                  alt="Logo do Gupify"
+                  src={CVIBE_LOGO}
+                  alt="Logo do CVibe"
                   className="w-7 h-7 rounded object-contain"
                 />
-                <span className="font-extrabold text-white tracking-wider">Gupify Web</span>
+                <span className="font-extrabold text-white tracking-wider">CVibe Web</span>
               </div>
               <p className="mt-2 text-[10px] text-gray-500 max-w-sm font-normal">
-                Ferramenta educacional e otimizadora independente. Sem afiliação oficial com a Gupy Inc.
+                Ferramenta educacional e otimizadora independente. Sem afiliação oficial com nenhuma plataforma de recrutamento.
               </p>
             </div>
 
@@ -473,7 +473,7 @@ export default function Landing() {
 
           <div className="mt-8 pt-8 border-t border-gray-900 text-center">
             <p className="font-mono text-[10px] tracking-widest text-gray-500">
-              Gupify — Feito para quem joga o jogo com estratégia. &nbsp; &nbsp; São Paulo · 2026
+              CVibe — Feito para quem joga o jogo com estratégia. &nbsp; &nbsp; São Paulo · 2026
             </p>
           </div>
         </div>

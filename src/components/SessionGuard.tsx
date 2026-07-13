@@ -13,7 +13,7 @@ export default function SessionGuard() {
           Iniciando Sessão Segura
         </h3>
         <p className="text-sm text-gray-500 mt-2 max-w-xs">
-          Estamos preparando o seu ambiente seguro temporário no Gupify.
+          Estamos preparando o seu ambiente seguro temporário no CVibe.
         </p>
       </div>
     );

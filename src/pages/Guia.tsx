@@ -26,7 +26,7 @@ export default function Guia() {
           </div>
           
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-none mb-4">
-            Desvendando o Robô da Gupy
+            Desvendando o Robô do Recrutamento
           </h1>
           
           <p className="text-indigo-200 text-sm sm:text-base leading-relaxed mb-8">
@@ -54,7 +54,7 @@ export default function Guia() {
             </h3>
             <nav className="flex flex-col gap-2 text-xs">
               <a href="#como-funciona" className="py-2 px-3 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-950 transition-all font-semibold block">
-                1. Como a Gupy pensa?
+                1. Como o algoritmo pensa?
               </a>
               <a href="#campos-peso" className="py-2 px-3 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-950 transition-all font-semibold block">
                 2. Os campos de maior peso
@@ -91,10 +91,10 @@ export default function Guia() {
           <section id="como-funciona" className="scroll-mt-20">
             <h2 className="text-xl sm:text-2xl font-black text-gray-950 flex items-center gap-2.5 border-b border-gray-100 pb-3 mb-4">
               <Compass className="w-6 h-6 text-indigo-600 shrink-0" />
-              1. Como o Algoritmo da Gupy de fato funciona?
+              1. Como o algoritmo de triagem de fato funciona?
             </h2>
             <p className="mb-4">
-              Diferente dos processos seletivos analógicos, onde o recrutador folheia cada folha de papel, a Gupy utiliza uma <span className="font-semibold text-gray-950">Inteligência Artificial Semântica</span> de triagem e ordenação (apelidada internamente de Gaia).
+              Diferente dos processos seletivos analógicos, onde o recrutador folheia cada folha de papel, a maioria das grandes plataformas de recrutamento hoje utiliza uma <span className="font-semibold text-gray-950">Inteligência Artificial Semântica</span> de triagem e ordenação para processar milhares de candidaturas.
             </p>
             <p className="mb-4">
               O sistema não faz apenas buscas literais por palavras. Ele tenta compreender o contexto das frases e dos cargos. Ele funciona calculando um <span className="font-semibold text-gray-950">índice de similaridade de cosseno</span> entre dois grandes blocos de texto:
@@ -115,7 +115,7 @@ export default function Guia() {
               2. Os Campos de Maior Peso no Ranqueamento
             </h2>
             <p className="mb-4">
-              Nem todas as caixas de texto no formulário da Gupy possuem o mesmo valor para a IA. Três seções principais concentram cerca de 80% do peso do score algorítmico de triagem:
+              Nem todas as caixas de texto nos formulários dessas plataformas possuem o mesmo valor para a IA. Três seções principais concentram cerca de 80% do peso do score algorítmico de triagem:
             </p>
 
             <div className="space-y-4 my-6">
@@ -185,7 +185,7 @@ export default function Guia() {
               <div className="p-3.5 bg-rose-50/40 border border-rose-100 rounded-xl flex items-start gap-2.5 text-xs">
                 <span className="font-bold text-rose-700 shrink-0">Erro 3:</span>
                 <p className="text-gray-700 leading-relaxed">
-                  <span className="font-bold text-gray-950">Enviar currículos diagramados em formato de imagem</span>. Se você criar o currículo no Canva e salvá-lo como imagem (ou se o PDF exportado não permitir a seleção de texto por ser rasterizado), os algoritmos de leitura OCR da Gupy podem falhar ao indexá-lo. Use sempre PDFs exportados como texto pesquisável.
+                  <span className="font-bold text-gray-950">Enviar currículos diagramados em formato de imagem</span>. Se você criar o currículo no Canva e salvá-lo como imagem (ou se o PDF exportado não permitir a seleção de texto por ser rasterizado), os algoritmos de leitura OCR dessas plataformas podem falhar ao indexá-lo. Use sempre PDFs exportados como texto pesquisável.
                 </p>
               </div>
 
@@ -209,7 +209,7 @@ export default function Guia() {
           <section id="dicas-ouro" className="scroll-mt-20">
             <h2 className="text-xl sm:text-2xl font-black text-gray-950 flex items-center gap-2.5 border-b border-gray-100 pb-3 mb-4">
               <Award className="w-6 h-6 text-indigo-600 shrink-0" />
-              4. Dicas de Ouro para Subir no Ranking da Gupy
+              4. Dicas de Ouro para Subir no Ranking
             </h2>
             <p className="mb-4">
               Siga estes passos recomendados por especialistas em recrutamento e seleção para obter notas elevadas:
@@ -241,7 +241,7 @@ export default function Guia() {
                 <div>
                   <h5 className="font-bold text-gray-900 text-sm">Calibre o Limite de Tamanho</h5>
                   <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
-                    Resumos ideais no algoritmo de contagem da Gupy possuem entre <span className="font-semibold text-gray-950">900 e 1.300 caracteres</span>. É o tamanho perfeito para dar robustez à IA e prender a atenção do recrutador em menos de 1 minuto de leitura física.
+                    Resumos ideais nesses algoritmos de contagem possuem entre <span className="font-semibold text-gray-950">900 e 1.300 caracteres</span>. É o tamanho perfeito para dar robustez à IA e prender a atenção do recrutador em menos de 1 minuto de leitura física.
                   </p>
                 </div>
               </div>
@@ -272,4 +272,3 @@ export default function Guia() {
     </div>
   );
 }
-

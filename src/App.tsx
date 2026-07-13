@@ -46,15 +46,22 @@ export default function App() {
   return (
     <SessionProvider>
       {/*
-        basename="/gupify-web" — o site é publicado em uma subpasta no
-        GitHub Pages (https://otavio2704.github.io/gupify-web/), não na raiz
-        do domínio. Sem isso, o React Router monta as rotas internas
-        (/dashboard, /generate, etc.) a partir da raiz do domínio, gerando
-        links e navegações incorretos como "otavio2704.github.io/dashboard"
-        em vez de ".../gupify-web/dashboard" — o que causa 404 tanto ao
-        navegar quanto ao recarregar a página.
+        basename — o site é publicado em uma subpasta no GitHub Pages
+        (https://otavio2704.github.io/cvibe-web/), não na raiz do domínio.
+        Sem isso, o React Router monta as rotas internas (/dashboard,
+        /generate, etc.) a partir da raiz do domínio, gerando links e
+        navegações incorretos como "otavio2704.github.io/dashboard" em vez
+        de ".../cvibe-web/dashboard" — o que causa 404 tanto ao navegar
+        quanto ao recarregar a página.
+
+        import.meta.env.BASE_URL reflete o "base" do vite.config.ts, mas o
+        vite-plugin-singlefile reescreve esse valor como "./" (relativo) no
+        build de produção, o que quebra o Router quando a URL é só "/"
+        (ex: npm run preview). Por isso normalizamos: um "./" (ou qualquer
+        valor sem "/" inicial) vira "/", e mantemos o valor original nos
+        outros casos (dev normal, ou build servido de fato em /cvibe-web/).
       */}
-      <BrowserRouter basename="/gupify-web">
+      <BrowserRouter basename={import.meta.env.BASE_URL.startsWith('/') ? import.meta.env.BASE_URL : '/'}>
         <AppShell />
       </BrowserRouter>
     </SessionProvider>

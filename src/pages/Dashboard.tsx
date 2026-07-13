@@ -5,7 +5,7 @@ import { useSession } from '../context/SessionContext';
 import { computeAtsScore, formatReportDate, getReportUpdatedAt } from '../utils/report';
 import { classifyError } from '../utils/errors';
 import ErrorBanner from '../components/ErrorBanner';
-import type { GupifyError } from '../utils/errors';
+import type { CVibeError } from '../utils/errors';
 import {
   LayoutDashboard,
   PlusCircle,
@@ -32,9 +32,9 @@ export default function Dashboard() {
   const [reportsList, setReportsList] = useState<any[]>([]);
   const [cvsCount, setCvsCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<GupifyError | null>(null);
+  const [error, setError] = useState<CVibeError | null>(null);
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState<{ id: string; error: GupifyError } | null>(null);
+  const [deleteError, setDeleteError] = useState<{ id: string; error: CVibeError } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [scoreFilter, setScoreFilter] = useState<ScoreFilter>('all');
   const [versionsFilter, setVersionsFilter] = useState<VersionsFilter>('all');

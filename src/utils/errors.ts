@@ -10,7 +10,7 @@ export type ErrorKind =
   | 'upload_size'   // arquivo muito grande (validação local)
   | 'generic';
 
-export interface GupifyError {
+export interface CVibeError {
   kind: ErrorKind;
   message: string;
   detail?: string;
@@ -18,7 +18,7 @@ export interface GupifyError {
 
 // ─── Classificação ────────────────────────────────────────────────────────────
 
-export function classifyError(err: unknown, context?: 'upload' | 'generate' | 'save' | 'delete' | 'load'): GupifyError {
+export function classifyError(err: unknown, context?: 'upload' | 'generate' | 'save' | 'delete' | 'load'): CVibeError {
   const msg = err instanceof Error ? err.message : String(err);
 
   if (!navigator.onLine) {

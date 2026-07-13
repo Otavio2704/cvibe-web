@@ -4,4 +4,4 @@ export const asset = (path: string): string => {
   return `${base}${cleanPath}`;
 };
 
-export const GUPIFY_LOGO = asset('gupify-logo.png');
+export const CVIBE_LOGO = asset('cvibe-logo.png');

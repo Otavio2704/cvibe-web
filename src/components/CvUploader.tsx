@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { cv as cvApi } from '../services/api';
 import { classifyError } from '../utils/errors';
 import ErrorBanner from './ErrorBanner';
-import type { GupifyError } from '../utils/errors';
+import type { CVibeError } from '../utils/errors';
 import {
   FileText,
   Upload,
@@ -28,7 +28,7 @@ export default function CvUploader({ selectedCvId, onSelectCv }: CvUploaderProps
   const [cvList, setCvList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<GupifyError | null>(null);
+  const [error, setError] = useState<CVibeError | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
@@ -141,7 +141,7 @@ export default function CvUploader({ selectedCvId, onSelectCv }: CvUploaderProps
           1. Escolha ou Envie seu Currículo
         </h2>
         <p className="text-sm text-gray-500 mt-0.5">
-          O Gupify utilizará as informações do seu currículo para contextualizar e mapear sua experiência de acordo com a vaga.
+          O CVibe utilizará as informações do seu currículo para contextualizar e mapear sua experiência de acordo com a vaga.
         </p>
       </div>
 

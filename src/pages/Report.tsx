@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { reports as reportsApi } from '../services/api';
 import { classifyError } from '../utils/errors';
 import ErrorBanner from '../components/ErrorBanner';
-import type { GupifyError } from '../utils/errors';
+import type { CVibeError } from '../utils/errors';
 import SummaryResult from '../components/SummaryResult';
 import KeywordBadges from '../components/KeywordBadges';
 import QualityChecklist from '../components/QualityChecklist';
@@ -38,13 +38,13 @@ export default function Report() {
 
   const [report, setReport] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<GupifyError | null>(null);
+  const [loadError, setLoadError] = useState<CVibeError | null>(null);
   const [editedSummary, setEditedSummary] = useState('');
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<GupifyError | null>(null);
+  const [saveError, setSaveError] = useState<CVibeError | null>(null);
   const [regenerating, setRegenerating] = useState(false);
-  const [regenError, setRegenError] = useState<GupifyError | null>(null);
-  const [deleteError, setDeleteError] = useState<GupifyError | null>(null);
+  const [regenError, setRegenError] = useState<CVibeError | null>(null);
+  const [deleteError, setDeleteError] = useState<CVibeError | null>(null);
   const [actionSuccess, setActionSuccess] = useState('');
 
   const liveScore = useMemo(
@@ -151,7 +151,7 @@ export default function Report() {
       .join('');
 
     w.document.write(`
-      <html><head><title>Gupify — ${escapeHtml(report.jobTitle)}</title>
+      <html><head><title>CVibe — ${escapeHtml(report.jobTitle)}</title>
       <style>
         body{font-family:'Segoe UI',sans-serif;color:#0f172a;margin:40px;line-height:1.6}
         .logo{font-size:22px;font-weight:900;color:#4f46e5}
@@ -163,19 +163,19 @@ export default function Report() {
         ul{list-style:none;padding:0;display:flex;gap:16px;font-size:14px;font-weight:600;color:#4f46e5}
         .footer{margin-top:56px;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;text-align:center;padding-top:14px}
       </style></head><body>
-      <div class="logo">Gupify</div>
-      <div class="sub">Otimizador de Perfil para a Gupy</div>
+      <div class="logo">CVibe</div>
+      <div class="sub">Otimizador de Perfil para Processos Seletivos</div>
       <h2>${escapeHtml(report.jobTitle)}</h2>
       <div class="meta">
         <strong>Currículo:</strong> ${escapeHtml(report.cvName || '—')}<br>
         <strong>Gerado em:</strong> ${escapeHtml(formatReportDate(report.createdAt))}<br>
         <strong>Tamanho:</strong> ${editedSummary.length} caracteres
       </div>
-      <div class="label">Resumo otimizado — cole no campo "Sobre você" da Gupy</div>
+      <div class="label">Resumo otimizado — cole no campo "Sobre você" da plataforma de vagas</div>
       <div class="box">${escapeHtml(editedSummary).replace(/\n/g, '<br>')}</div>
       <div class="label">Palavras-chave de alto impacto</div>
       <ul>${kws}</ul>
-      <div class="footer">Gerado pelo Gupify · Uso pessoal e educacional</div>
+      <div class="footer">Gerado pelo CVibe · Uso pessoal e educacional</div>
       <script>window.onload=()=>window.print()</script>
       </body></html>
     `);

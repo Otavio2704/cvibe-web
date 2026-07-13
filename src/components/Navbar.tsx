@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSession } from '../context/SessionContext';
 import HiredFeedbackModal from './HiredFeedbackModal';
-import { GUPIFY_LOGO } from '../utils/assets';
+import { CVIBE_LOGO } from '../utils/assets';
 import {
   LayoutDashboard,
   Sparkles,
@@ -32,7 +32,7 @@ function HiredFeedbackCard({ compact = false, onClick }: { compact?: boolean; on
             <span>Conseguiu a vaga?</span>
           </div>
           <p className="text-[11px] text-emerald-700/80 leading-relaxed mt-1">
-            Me avisa se você foi contratado pela Gupy usando a plataforma. Quero publicar relatos reais na landing page.
+            Me avisa se você foi contratado usando a plataforma. Quero publicar relatos reais na landing page.
           </p>
         </div>
       </div>
@@ -49,7 +49,7 @@ export function Sidebar() {
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Otimizar Currículo', path: '/generate', icon: Sparkles },
-    { name: 'Guia da Gupy', path: '/guia', icon: BookOpen },
+    { name: 'Guia dos Recrutadores', path: '/guia', icon: BookOpen },
     { name: 'Checklist Interativo', path: '/checklist', icon: CheckSquare },
   ];
 
@@ -66,12 +66,12 @@ export function Sidebar() {
         <div>
           <Link to="/dashboard" className="flex items-center space-x-2.5 mb-8 px-2">
             <img
-              src={GUPIFY_LOGO}
-              alt="Logo do Gupify"
+              src={CVIBE_LOGO}
+              alt="Logo do CVibe"
               className="w-9 h-9 rounded-xl shadow-md shadow-indigo-200 object-contain"
             />
             <span className="text-xl font-black tracking-tight bg-gradient-to-r from-indigo-600 to-indigo-900 bg-clip-text text-transparent">
-              Gupify<span className="text-slate-400 font-normal text-sm ml-0.5">Web</span>
+              CVibe<span className="text-slate-400 font-normal text-sm ml-0.5">Web</span>
             </span>
           </Link>
 
@@ -139,7 +139,7 @@ export default function Navbar() {
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Otimizar Currículo', path: '/generate', icon: Sparkles },
-    { name: 'Guia da Gupy', path: '/guia', icon: BookOpen },
+    { name: 'Guia dos Recrutadores', path: '/guia', icon: BookOpen },
     { name: 'Checklist Interativo', path: '/checklist', icon: CheckSquare },
   ];
 
@@ -156,12 +156,12 @@ export default function Navbar() {
             <div className="flex items-center space-x-3 min-w-0">
               <Link to="/" className="flex items-center space-x-2 flex-shrink-0">
                 <img
-                  src={GUPIFY_LOGO}
-                  alt="Logo do Gupify"
+                  src={CVIBE_LOGO}
+                  alt="Logo do CVibe"
                   className="w-9 h-9 rounded-lg shadow-md shadow-indigo-200 object-contain"
                 />
                 <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 to-indigo-800 bg-clip-text text-transparent">
-                  Gupify<span className="text-gray-400 font-normal text-sm ml-0.5">Web</span>
+                  CVibe<span className="text-gray-400 font-normal text-sm ml-0.5">Web</span>
                 </span>
               </Link>
 
@@ -193,12 +193,12 @@ export default function Navbar() {
           <div className="flex items-center">
             <Link to="/dashboard" className="flex items-center space-x-2 flex-shrink-0" title="Voltar ao Painel">
               <img
-                src={GUPIFY_LOGO}
-                alt="Logo do Gupify"
+                src={CVIBE_LOGO}
+                alt="Logo do CVibe"
                 className="w-9 h-9 rounded-lg shadow-md shadow-indigo-200 object-contain"
               />
               <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 to-indigo-800 bg-clip-text text-transparent">
-                Gupify<span className="text-gray-400 font-normal text-sm ml-0.5">Web</span>
+                CVibe<span className="text-gray-400 font-normal text-sm ml-0.5">Web</span>
               </span>
             </Link>
           </div>

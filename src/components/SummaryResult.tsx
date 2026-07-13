@@ -84,7 +84,7 @@ export default function SummaryResult({
             ) : (
               <>
                 <Copy className="w-3 h-3 shrink-0" />
-                <span>Copiar para a Gupy</span>
+                <span>Copiar texto</span>
               </>
             )}
           </button>
@@ -111,7 +111,7 @@ export default function SummaryResult({
 
           <div className="flex items-center justify-between border-t border-gray-100 bg-white/60 rounded-b-xl px-3.5 py-2 text-[11px]">
             <span className="text-gray-400 font-medium">
-              Campo "Apresente-se" na Gupy
+              Campo "Apresente-se" da plataforma de vagas
             </span>
             <span className={`font-semibold transition-colors ${
               isLengthWarning ? 'text-rose-600' : isLengthOptimal ? 'text-emerald-600' : isLengthShort ? 'text-amber-500' : 'text-gray-500'
@@ -124,7 +124,7 @@ export default function SummaryResult({
         <div className="mt-2.5 flex flex-col gap-1.5">
           {isLengthWarning && (
             <p className="text-[11px] px-3 py-2 bg-rose-50 border border-rose-100 text-rose-700 rounded-lg font-medium">
-              ⚠️ Passou de 1.500 caracteres — a Gupy cortará o excedente. Reduza o texto.
+              ⚠️ Passou de 1.500 caracteres — o sistema pode cortar o excedente. Reduza o texto.
             </p>
           )}
           {isLengthOptimal && !isLengthWarning && (
@@ -142,4 +142,3 @@ export default function SummaryResult({
     </div>
   );
 }
-

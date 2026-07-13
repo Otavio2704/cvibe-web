@@ -70,7 +70,7 @@ export default function HiredFeedbackModal({ open, onClose }: HiredFeedbackModal
             from_email: email.trim() || 'Não informado',
             job_info: jobInfo.trim(),
             message: message.trim(),
-            source: 'Gupify Web',
+            source: 'CVibe Web',
             sent_at: new Date().toLocaleString('pt-BR'),
           },
         }),
@@ -210,7 +210,7 @@ export default function HiredFeedbackModal({ open, onClose }: HiredFeedbackModal
               <textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder="Conte como o Gupify ajudou no processo..."
+                placeholder="Conte como o CVibe ajudou no processo..."
                 rows={4}
                 className="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-emerald-300 resize-none leading-relaxed"
               />

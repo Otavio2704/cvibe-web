@@ -11,7 +11,7 @@ import {
   Loader2,
   X,
 } from 'lucide-react';
-import type { GupifyError, ErrorKind } from '../utils/errors';
+import type { CVibeError, ErrorKind } from '../utils/errors';
 
 // ─── Configuração visual por tipo de erro ─────────────────────────────────────
 
@@ -74,7 +74,7 @@ const ERROR_CONFIG: Record<ErrorKind, {
 // ─── Componente ───────────────────────────────────────────────────────────────
 
 interface ErrorBannerProps {
-  error: GupifyError;
+  error: CVibeError;
   onRetry?: () => void;
   retrying?: boolean;
   onDismiss?: () => void;

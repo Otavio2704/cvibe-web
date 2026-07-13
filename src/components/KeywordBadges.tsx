@@ -41,7 +41,7 @@ export default function KeywordBadges({ keywords = [] }: KeywordBadgesProps) {
             Palavras-Chave de Alto Impacto
           </h3>
           <p className="text-xs text-gray-500 mt-0.5">
-            Mapeadas pelo Gupify para garantir alta relevância no ranqueamento da triagem.
+            Mapeadas pelo CVibe para garantir alta relevância no ranqueamento da triagem.
           </p>
         </div>
 
@@ -103,7 +103,7 @@ export default function KeywordBadges({ keywords = [] }: KeywordBadgesProps) {
       <div className="p-3 bg-indigo-50/30 border border-indigo-100/30 rounded-xl flex gap-2.5">
         <Sparkles className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
         <p className="text-xs text-indigo-900 leading-relaxed">
-          <span className="font-bold">Onde usar?</span> Estas palavras-chave foram extraídas diretamente dos requisitos de maior peso da vaga. Certifique-se de que elas aparecem não apenas no seu resumo, mas também descritas nos detalhes de suas <span className="font-semibold">Experiências Profissionais</span> e na seção de <span className="font-semibold">Habilidades</span> da Gupy para impulsionar sua nota geral no ranqueamento.
+          <span className="font-bold">Onde usar?</span> Estas palavras-chave foram extraídas diretamente dos requisitos de maior peso da vaga. Certifique-se de que elas aparecem não apenas no seu resumo, mas também descritas nos detalhes de suas <span className="font-semibold">Experiências Profissionais</span> e na seção de <span className="font-semibold">Habilidades</span> do seu perfil para impulsionar sua nota geral nos sistemas de triagem automática.
         </p>
       </div>
     </div>

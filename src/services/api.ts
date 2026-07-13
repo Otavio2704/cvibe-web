@@ -9,7 +9,7 @@ const resolveApiBaseUrl = () => {
 const API_BASE_URL = resolveApiBaseUrl();
 
 if (!API_BASE_URL && !(import.meta as any).env.DEV) {
-  console.error('[Gupify] VITE_API_BASE_URL não definida. Configure a variável no ambiente de build.');
+  console.error('[CVibe] VITE_API_BASE_URL não definida. Configure a variável no ambiente de build.');
 }
 
 let useMock = false;
@@ -25,7 +25,7 @@ export const isUsingMock = () => useMock;
 const triggerMockMode = () => {
   if (!useMock) {
     useMock = true;
-    console.warn(`[Gupify API] Conexão com ${API_BASE_URL} falhou. Ativando Modo Simulador Local (sessionStorage) para fins de demonstração.`);
+    console.warn(`[CVibe API] Conexão com ${API_BASE_URL} falhou. Ativando Modo Simulador Local (sessionStorage) para fins de demonstração.`);
     if (onMockStateChange) onMockStateChange(true);
   }
 };
@@ -106,7 +106,7 @@ const setLocalData = (key: string, data: any) => {
   sessionStorage.setItem(key, JSON.stringify(data));
 };
 
-const REPORT_CACHE_KEY = 'gupify_report_cache';
+const REPORT_CACHE_KEY = 'cvibe_report_cache';
 
 const getReportCache = () => getLocalData(REPORT_CACHE_KEY, {} as Record<string, any>);
 
@@ -189,8 +189,8 @@ const buildVersions = (currentReport: any, nextSummary: string) => {
 };
 
 const initMockDB = () => {
-  if (!sessionStorage.getItem('gupify_mock_cvs')) {
-    setLocalData('gupify_mock_cvs', [
+  if (!sessionStorage.getItem('cvibe_mock_cvs')) {
+    setLocalData('cvibe_mock_cvs', [
       {
         id: 'cv-1',
         name: 'Curriculo_Analista_Marketing.pdf',
@@ -199,8 +199,8 @@ const initMockDB = () => {
       },
     ]);
   }
-  if (!sessionStorage.getItem('gupify_mock_reports')) {
-    setLocalData('gupify_mock_reports', []);
+  if (!sessionStorage.getItem('cvibe_mock_reports')) {
+    setLocalData('cvibe_mock_reports', []);
   }
 };
 
@@ -298,9 +298,9 @@ export const cv = {
         content: `Conteúdo simulado extraído de ${fileName}.`,
         uploadedAt: new Date().toISOString(),
       };
-      const cvs = getLocalData('gupify_mock_cvs', []);
+      const cvs = getLocalData('cvibe_mock_cvs', []);
       cvs.push(newCv);
-      setLocalData('gupify_mock_cvs', cvs);
+      setLocalData('cvibe_mock_cvs', cvs);
       await new Promise((resolve) => setTimeout(resolve, 1000));
       return newCv;
     }
@@ -317,7 +317,7 @@ export const cv = {
       }));
     } catch (err) {
       triggerMockMode();
-      return getLocalData('gupify_mock_cvs', []);
+      return getLocalData('cvibe_mock_cvs', []);
     }
   },
 
@@ -328,9 +328,9 @@ export const cv = {
       return { success: true };
     } catch (err) {
       triggerMockMode();
-      let cvs = getLocalData('gupify_mock_cvs', []);
+      let cvs = getLocalData('cvibe_mock_cvs', []);
       cvs = cvs.filter((item: any) => item.id !== id);
-      setLocalData('gupify_mock_cvs', cvs);
+      setLocalData('cvibe_mock_cvs', cvs);
       return { success: true };
     }
   },
@@ -381,7 +381,7 @@ export const generate = {
       };
     } catch (err) {
       triggerMockMode();
-      const cvs = getLocalData('gupify_mock_cvs', []);
+      const cvs = getLocalData('cvibe_mock_cvs', []);
       const selectedCv = cvs.find((c: any) => c.id === body.cvId) || { content: 'vazio', name: 'Curriculo.pdf' };
       const aiResult = simulateAIGeneration(selectedCv.content, body.jobTitle, body.jobContent);
       await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -406,9 +406,9 @@ export const generate = {
           },
         ],
       });
-      const reports = getLocalData('gupify_mock_reports', []);
+      const reports = getLocalData('cvibe_mock_reports', []);
       reports.unshift(mockReport);
-      setLocalData('gupify_mock_reports', reports);
+      setLocalData('cvibe_mock_reports', reports);
       return {
         reportId: mockId,
         id: mockId,
@@ -432,7 +432,7 @@ export const reports = {
       return (list || []).map((item: any) => saveCachedReport(mergeWithCachedReport(item)));
     } catch (err) {
       triggerMockMode();
-      return getLocalData('gupify_mock_reports', []).map(normalizeReport);
+      return getLocalData('cvibe_mock_reports', []).map(normalizeReport);
     }
   },
 
@@ -443,7 +443,7 @@ export const reports = {
       // FIX: jobDescriptionContent já vem no response, mergeWithCachedReport
       // complementa com cvName e versions do sessionStorage quando disponíveis.
       const merged = mergeWithCachedReport(r);
-      const localList = getLocalData('gupify_mock_reports', []);
+      const localList = getLocalData('cvibe_mock_reports', []);
       const localFound = localList.find((item: any) => item.id === id);
 
       if (localFound) {
@@ -460,7 +460,7 @@ export const reports = {
       return saveCachedReport(merged);
     } catch (err) {
       triggerMockMode();
-      const list = getLocalData('gupify_mock_reports', []);
+      const list = getLocalData('cvibe_mock_reports', []);
       const found = list.find((r: any) => r.id === id);
       if (!found) throw new Error('Não encontrado');
       return normalizeReport(found);
@@ -492,7 +492,7 @@ export const reports = {
         return normalized;
       }
 
-      const localList = getLocalData('gupify_mock_reports', []);
+      const localList = getLocalData('cvibe_mock_reports', []);
       const localFound = localList.find((r: any) => r.id === id);
       if (localFound) {
         return saveCachedReport(normalizeReport({ ...localFound, ...normalized }));
@@ -501,7 +501,7 @@ export const reports = {
       return normalized;
     } catch (err) {
       triggerMockMode();
-      const list = getLocalData('gupify_mock_reports', []);
+      const list = getLocalData('cvibe_mock_reports', []);
       const index = list.findIndex((r: any) => r.id === id);
       if (index !== -1) {
         const now = new Date().toISOString();
@@ -526,7 +526,7 @@ export const reports = {
           updatedAt: now,
           versions,
         });
-        setLocalData('gupify_mock_reports', list);
+        setLocalData('cvibe_mock_reports', list);
         return list[index];
       }
       throw new Error('Não encontrado');
@@ -549,7 +549,7 @@ export const reports = {
         versions,
       }));
 
-      const localList = getLocalData('gupify_mock_reports', []);
+      const localList = getLocalData('cvibe_mock_reports', []);
       const localIndex = localList.findIndex((r: any) => r.id === id);
 
       if (localIndex !== -1) {
@@ -564,14 +564,14 @@ export const reports = {
           versions: mergedVersions,
         });
         localList[localIndex] = mergedReport;
-        setLocalData('gupify_mock_reports', localList);
+        setLocalData('cvibe_mock_reports', localList);
         return saveCachedReport(mergedReport);
       }
 
       return normalized;
     } catch (err) {
       triggerMockMode();
-      const list = getLocalData('gupify_mock_reports', []);
+      const list = getLocalData('cvibe_mock_reports', []);
       const index = list.findIndex((r: any) => r.id === id);
       if (index !== -1) {
         const current = normalizeReport(list[index]);
@@ -595,7 +595,7 @@ export const reports = {
           updatedAt: now,
           versions,
         });
-        setLocalData('gupify_mock_reports', list);
+        setLocalData('cvibe_mock_reports', list);
         return list[index];
       }
       throw new Error('Não encontrado');
@@ -610,9 +610,9 @@ export const reports = {
       return { success: true };
     } catch (err) {
       triggerMockMode();
-      let list = getLocalData('gupify_mock_reports', []);
+      let list = getLocalData('cvibe_mock_reports', []);
       list = list.filter((r: any) => r.id !== id);
-      setLocalData('gupify_mock_reports', list);
+      setLocalData('cvibe_mock_reports', list);
       removeCachedReport(id);
       return { success: true };
     }

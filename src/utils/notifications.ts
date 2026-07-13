@@ -11,7 +11,7 @@
 // de <audio> + setTimeout, e o flash do título usa setInterval só pra UI,
 // sem depender dele pra nada funcional.
 
-import { GUPIFY_LOGO } from './assets';
+import { CVIBE_LOGO } from './assets';
 
 let titleFlashInterval: ReturnType<typeof setInterval> | null = null;
 let originalTitle: string | null = null;
@@ -128,8 +128,8 @@ export const notifyIfInBackground = ({ title, body }: NotifyOptions) => {
     try {
       const notification = new Notification(title, {
         body,
-        icon: GUPIFY_LOGO,
-        tag: 'gupify-generate',
+        icon: CVIBE_LOGO,
+        tag: 'cvibe-generate',
       });
       notification.onclick = () => {
         window.focus();

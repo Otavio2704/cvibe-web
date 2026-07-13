@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { generate as generateApi, reports as reportsApi } from '../services/api';
 import { computeAtsScore } from '../utils/report';
 import { classifyError } from '../utils/errors';
-import type { GupifyError } from '../utils/errors';
+import type { CVibeError } from '../utils/errors';
 import { ensureNotificationPermission, notifyIfInBackground } from '../utils/notifications';
 import ErrorBanner from '../components/ErrorBanner';
 import CvUploader from '../components/CvUploader';
@@ -81,7 +81,7 @@ function GeneratingOverlay({ onCancel }: { onCancel: () => void }) {
           <span className="text-indigo-600 font-semibold">
             competências, termos e requisitos de maior impacto
           </span>{' '}
-          para o algoritmo da Gupy.
+          para os algoritmos de triagem das plataformas de recrutamento.
         </p>
 
         <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden mb-4">
@@ -114,7 +114,7 @@ export default function Generate() {
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [retrying, setRetrying] = useState(false);
-  const [error, setError] = useState<GupifyError | null>(null);
+  const [error, setError] = useState<CVibeError | null>(null);
   const [success, setSuccess] = useState(false);
 
   const [generatedResult, setGeneratedResult] = useState<any | null>(null);
@@ -316,7 +316,7 @@ export default function Generate() {
       <div className="mb-8">
         <h1 className="text-2xl font-black text-slate-900 tracking-tight">Otimizar currículo</h1>
         <p className="text-sm text-slate-500 mt-0.5">
-          Informe o currículo e a vaga desejada. A IA ajusta seu resumo para aumentar a aderência ao algoritmo da Gupy.
+          Informe o currículo e a vaga desejada. A IA ajusta seu resumo para aumentar a aderência aos algoritmos de triagem das plataformas de recrutamento.
         </p>
       </div>
 
@@ -374,7 +374,7 @@ export default function Generate() {
                 id="job-content"
                 value={jobContent}
                 onChange={(e) => setJobContent(e.target.value)}
-                placeholder="Cole aqui as responsabilidades, requisitos, habilidades desejadas, benefícios e a descrição completa da vaga anunciada na Gupy..."
+                placeholder="Cole aqui as responsabilidades, requisitos, habilidades desejadas, benefícios e a descrição completa da vaga anunciada..."
                 rows={6}
                 className="w-full px-3 py-2.5 text-sm text-slate-800 bg-slate-50 border border-slate-200 rounded-lg focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100 transition-all resize-none placeholder:text-slate-300 leading-relaxed"
                 required
