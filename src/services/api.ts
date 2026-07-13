@@ -1,9 +1,10 @@
 const resolveApiBaseUrl = () => {
   const envBaseUrl = (import.meta as any).env.VITE_API_BASE_URL?.trim();
   if (envBaseUrl) return envBaseUrl.replace(/\/$/, '');
-  // FIX: fallback de produção removido — URL vem sempre de VITE_API_BASE_URL.
-  // Em dev sem a variável definida, cai no localhost.
-  return (import.meta as any).env.DEV ? 'http://localhost:8080' : '';
+  // FIX: em dev usamos caminho relativo ("/api") para aproveitar o proxy do Vite,
+  // eliminando CORS e problemas de cookie SameSite. Em produção/build, a variável
+  // de ambiente ou o servidor deve configurar o proxy reverso.
+  return (import.meta as any).env.DEV ? '' : '';
 };
 
 const API_BASE_URL = resolveApiBaseUrl();
@@ -618,3 +619,4 @@ export const reports = {
     }
   },
 };
+
