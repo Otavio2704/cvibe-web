@@ -42,6 +42,32 @@ function AppShell() {
   );
 }
 
+// Detecta o basename olhando a URL real que o navegador está usando, em vez
+// de confiar em import.meta.env.BASE_URL.
+//
+// Por quê: o "base" configurado no vite.config.ts é "/cvibe-web/", correto
+// para produção (GitHub Pages). Só que o vite-plugin-singlefile reescreve
+// BASE_URL como "./" (relativo) dentro do bundle final — não importa se o
+// ambiente é dev local ou produção real, o valor injetado é sempre "./".
+// Ou seja, BASE_URL sozinho NÃO diferencia "estou em localhost:5173" de
+// "estou publicado em otavio2704.github.io/cvibe-web/".
+//
+// A correção anterior (usar "/" sempre que BASE_URL não começasse com "/")
+// resolvia o caso local, mas quebrava produção: o Router passava a tratar
+// o site como se vivesse na raiz do domínio, então qualquer navegação
+// client-side (cliques em <Link>, etc.) reescrevia a URL removendo o
+// "/cvibe-web/" — o usuário via a barra de endereço "limpar" para
+// "otavio2704.github.io/" mesmo com o conteúdo certo carregado.
+//
+// A forma confiável é checar window.location.pathname no momento em que a
+// página carrega: se ele começa com "/cvibe-web", estamos em produção real
+// e o basename deve ser "/cvibe-web/". Caso contrário (localhost, preview
+// local), o basename é "/".
+function detectBasename(): string {
+  const path = window.location.pathname;
+  return path.startsWith('/cvibe-web') ? '/cvibe-web/' : '/';
+}
+
 export default function App() {
   return (
     <SessionProvider>
@@ -52,16 +78,10 @@ export default function App() {
         /generate, etc.) a partir da raiz do domínio, gerando links e
         navegações incorretos como "otavio2704.github.io/dashboard" em vez
         de ".../cvibe-web/dashboard" — o que causa 404 tanto ao navegar
-        quanto ao recarregar a página.
-
-        import.meta.env.BASE_URL reflete o "base" do vite.config.ts, mas o
-        vite-plugin-singlefile reescreve esse valor como "./" (relativo) no
-        build de produção, o que quebra o Router quando a URL é só "/"
-        (ex: npm run preview). Por isso normalizamos: um "./" (ou qualquer
-        valor sem "/" inicial) vira "/", e mantemos o valor original nos
-        outros casos (dev normal, ou build servido de fato em /cvibe-web/).
+        quanto ao recarregar a página. Ver o comentário em detectBasename()
+        acima para o porquê de não usar import.meta.env.BASE_URL direto.
       */}
-      <BrowserRouter basename={import.meta.env.BASE_URL.startsWith('/') ? import.meta.env.BASE_URL : '/'}>
+      <BrowserRouter basename={detectBasename()}>
         <AppShell />
       </BrowserRouter>
     </SessionProvider>
