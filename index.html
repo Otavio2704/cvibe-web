@@ -5,8 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!-- Ícone da aba do navegador -->
-    <link rel="icon" type="image/png" href="./cvibe-logo.png" />
-    <link rel="apple-touch-icon" href="./cvibe-logo.png" />
+    <!-- Path absoluto fixo com o base do GitHub Pages (/cvibe-web/).
+         Testamos "./cvibe-logo.png" (relativo) e "./cvibe-logo.png"
+         (variável do Vite) e nenhum dos dois funciona aqui: o
+         vite-plugin-singlefile processa o HTML antes da substituição de
+         ./ e não reescreve corretamente caminhos relativos em tags
+         <link> fora do fluxo padrão de assets. Resultado: em produção
+         resolvia para a raiz do domínio (otavio2704.github.io/cvibe-logo.png)
+         em vez da subpasta correta
+         (otavio2704.github.io/cvibe-web/cvibe-logo.png), gerando 404.
+         Path absoluto fixo é o único que funcionou de forma confiável.
+         Efeito colateral aceitável: em dev local (localhost:5173) o favicon
+         dá 404, já que não existe "/cvibe-web/" na raiz local — é só
+         cosmético (ícone da aba), sem impacto funcional. -->
+    <link rel="icon" type="image/png" href="/cvibe-web/cvibe-logo.png" />
+    <link rel="apple-touch-icon" href="/cvibe-web/cvibe-logo.png" />
 
     <!-- Metadados básicos -->
     <meta name="description" content="Envie seu currículo e a vaga desejada. A IA do CVibe ajusta seu resumo para aumentar a aderência aos algoritmos de triagem dos processos seletivos." />
@@ -39,7 +52,7 @@
         default-src 'self';
         script-src 'self' 'unsafe-inline';
         style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-        connect-src 'self' http://localhost:8080 https://cvibe-api.onrender.com https://api.emailjs.com;
+        connect-src 'self' http://localhost:8080 https://gupify-api.onrender.com https://api.emailjs.com;
         img-src 'self' data:;
         font-src 'self' data: https://fonts.gstatic.com;
         frame-ancestors 'self';
