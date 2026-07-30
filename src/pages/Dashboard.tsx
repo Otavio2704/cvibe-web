@@ -7,13 +7,11 @@ import { classifyError } from '../utils/errors';
 import ErrorBanner from '../components/ErrorBanner';
 import type { CVibeError } from '../utils/errors';
 import {
-  LayoutDashboard,
   PlusCircle,
   FileText,
   ChevronRight,
   Trash2,
   Calendar,
-  FileSignature,
   Clock,
   Sparkles,
   Loader2,
@@ -26,6 +24,12 @@ import {
 type ScoreFilter = 'all' | 'excellent' | 'good' | 'attention';
 type VersionsFilter = 'all' | 'withVersions' | 'singleVersion';
 type DateFilter = 'all' | 'today' | 'last7' | 'last30';
+
+function scoreBadgeClasses(score: number) {
+  if (score >= 80) return 'text-emerald-700 bg-emerald-50 border-emerald-100';
+  if (score >= 60) return 'text-amber-700 bg-amber-50 border-amber-100';
+  return 'text-rose-700 bg-rose-50 border-rose-100';
+}
 
 export default function Dashboard() {
   const { isMockMode } = useSession();
@@ -142,6 +146,11 @@ export default function Dashboard() {
   const hasActiveFilters =
     searchQuery.trim() || scoreFilter !== 'all' || versionsFilter !== 'all' || dateFilter !== 'all';
 
+  const bestScore = useMemo(
+    () => (enhancedReports.length ? Math.max(...enhancedReports.map((r) => r.atsScore)) : null),
+    [enhancedReports],
+  );
+
   const clearFilters = () => {
     setSearchQuery('');
     setScoreFilter('all');
@@ -151,20 +160,20 @@ export default function Dashboard() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8 pb-6 border-b border-slate-200">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-gray-900 flex items-center gap-2">
-            <LayoutDashboard className="w-7 h-7 text-indigo-600" />
-            Painel de Otimizações
+          <span className="text-[11px] uppercase font-bold tracking-[0.18em] text-indigo-700 block mb-2">Painel</span>
+          <h1 className="font-serif-editorial text-2xl sm:text-3xl font-semibold text-slate-950 tracking-tight">
+            Suas otimizações
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Gerencie seus relatórios de otimização de currículos gerados nesta sessão de recrutamento.
+          <p className="text-sm text-slate-500 mt-1.5">
+            Gerencie os relatórios de otimização de currículos gerados nesta sessão.
           </p>
         </div>
 
         <Link
           to="/generate"
-          className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-sm font-bold rounded-xl shadow-md shadow-indigo-100 transition-all shrink-0"
+          className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-slate-950 hover:bg-slate-900 active:scale-95 text-white text-sm font-bold rounded-lg transition-all shrink-0"
         >
           <PlusCircle className="w-4.5 h-4.5" />
           Nova Otimização
@@ -181,36 +190,36 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-8">
-        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-          <span className="text-xs font-semibold text-gray-400 uppercase block">Currículos Enviados</span>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-slate-200 border border-slate-200 mb-8">
+        <div className="bg-white p-5">
+          <span className="text-xs font-semibold text-slate-400 uppercase block">Currículos Enviados</span>
           <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-3xl font-black text-indigo-600">{cvsCount}</span>
-            <span className="text-xs text-gray-400">arquivos na sessão</span>
+            <span className="text-3xl font-black text-slate-950">{cvsCount}</span>
+            <span className="text-xs text-slate-400">arquivos na sessão</span>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-          <span className="text-xs font-semibold text-gray-400 uppercase block">Relatórios Salvos</span>
+        <div className="bg-white p-5">
+          <span className="text-xs font-semibold text-slate-400 uppercase block">Relatórios Salvos</span>
           <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-3xl font-black text-indigo-600">{reportsList.length}</span>
-            <span className="text-xs text-gray-400">cargos otimizados</span>
+            <span className="text-3xl font-black text-slate-950">{reportsList.length}</span>
+            <span className="text-xs text-slate-400">cargos otimizados</span>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 border border-indigo-50 bg-indigo-50/10 shadow-sm">
-          <span className="text-xs font-semibold text-indigo-700 uppercase block flex items-center gap-1">
-            <Sparkles className="w-3 h-3 text-indigo-600" />
-            Relatórios desta Sessão
+        <div className="relative bg-slate-950 p-5 overflow-hidden">
+          <span className="relative text-xs font-semibold text-indigo-300 uppercase block flex items-center gap-1">
+            <Sparkles className="w-3 h-3" />
+            Melhor Pontuação ATS
           </span>
-          <div className="flex items-baseline gap-2 mt-2">
-            {reportsList.length === 0 ? (
-              <span className="text-sm text-gray-400 font-medium">Nenhum relatório ainda</span>
+          <div className="relative flex items-baseline gap-2 mt-2">
+            {bestScore === null ? (
+              <span className="text-sm text-slate-400 font-medium">Ainda sem relatórios</span>
             ) : (
               <>
-                <span className="text-3xl font-black text-indigo-600">{reportsList.length}</span>
-                <span className="text-xs text-indigo-700 font-semibold bg-indigo-50 px-1.5 py-0.5 rounded">
-                  {reportsList.length === 1 ? 'vaga otimizada' : 'vagas otimizadas'}
+                <span className="text-3xl font-black text-white">{bestScore}%</span>
+                <span className="text-xs text-slate-400 font-semibold bg-white/5 px-1.5 py-0.5 rounded">
+                  em {enhancedReports.length === 1 ? 'seu relatório' : `${enhancedReports.length} relatórios`}
                 </span>
               </>
             )}
@@ -240,16 +249,15 @@ export default function Dashboard() {
 
       <div className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-            <FileSignature className="w-5 h-5 text-gray-500" />
+          <h2 className="text-lg font-bold text-slate-950">
             Histórico de Relatórios
           </h2>
         </div>
 
         {!loading && reportsList.length > 0 && (
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-4">
+          <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-4">
             <div className="flex flex-col lg:flex-row lg:items-center gap-3">
-              <label className="flex-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-gray-600">
+              <label className="flex-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-gray-600">
                 <Search className="w-4 h-4 text-gray-400" />
                 <input
                   value={searchQuery}
@@ -270,7 +278,7 @@ export default function Dashboard() {
                 <select
                   value={scoreFilter}
                   onChange={(e) => setScoreFilter(e.target.value as ScoreFilter)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-700 outline-none focus:border-indigo-300"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-xs font-semibold text-slate-700 outline-none focus:border-indigo-300"
                 >
                   <option value="all">Qualquer pontuação</option>
                   <option value="excellent">Excelente — 80% ou mais</option>
@@ -284,7 +292,7 @@ export default function Dashboard() {
                 <select
                   value={versionsFilter}
                   onChange={(e) => setVersionsFilter(e.target.value as VersionsFilter)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-700 outline-none focus:border-indigo-300"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-xs font-semibold text-slate-700 outline-none focus:border-indigo-300"
                 >
                   <option value="all">Todos os relatórios</option>
                   <option value="withVersions">Com revisões salvas</option>
@@ -297,7 +305,7 @@ export default function Dashboard() {
                 <select
                   value={dateFilter}
                   onChange={(e) => setDateFilter(e.target.value as DateFilter)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-700 outline-none focus:border-indigo-300"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-xs font-semibold text-slate-700 outline-none focus:border-indigo-300"
                 >
                   <option value="all">Qualquer data</option>
                   <option value="today">Criados/alterados hoje</option>
@@ -316,7 +324,7 @@ export default function Dashboard() {
                 <button
                   type="button"
                   onClick={clearFilters}
-                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors"
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors"
                 >
                   <XCircle className="w-3.5 h-3.5" />
                   Limpar filtros
@@ -327,9 +335,18 @@ export default function Dashboard() {
         )}
 
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border border-gray-100 shadow-sm">
-            <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mb-3" />
-            <span className="text-sm text-gray-500 font-medium">Buscando seus relatórios salvos...</span>
+          <div className="space-y-4" aria-busy="true" aria-label="Carregando relatórios">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 sm:p-6 animate-pulse">
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  <div className="h-4 w-16 bg-slate-100 rounded" />
+                  <div className="h-4 w-24 bg-slate-100 rounded" />
+                  <div className="h-4 w-14 bg-slate-100 rounded" />
+                </div>
+                <div className="h-5 w-2/3 bg-slate-100 rounded mb-2" />
+                <div className="h-3 w-1/3 bg-slate-100 rounded" />
+              </div>
+            ))}
           </div>
         ) : visibleReports.length === 0 ? (
           <div className="flex flex-col items-center justify-center text-center p-10 sm:p-16 bg-white rounded-2xl border border-dashed border-gray-200 shadow-sm">
@@ -358,7 +375,7 @@ export default function Dashboard() {
               <Link
                 key={report.id}
                 to={`/reports/${report.id}`}
-                className="block bg-white hover:bg-gray-50/80 rounded-2xl border border-gray-100 hover:border-indigo-200 hover:shadow-md hover:shadow-indigo-50/35 transition-all p-5 sm:p-6"
+                className="block bg-white hover:bg-slate-50/80 active:scale-[0.995] rounded-lg border border-slate-200 hover:border-indigo-300 transition-all p-5 sm:p-6"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="space-y-1.5 min-w-0">
@@ -370,7 +387,7 @@ export default function Dashboard() {
                         <Calendar className="w-3 h-3" />
                         {formatReportDate(report.referenceDate)}
                       </span>
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                      <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded border ${scoreBadgeClasses(report.atsScore)}`}>
                         ATS {report.atsScore}%
                       </span>
                     </div>

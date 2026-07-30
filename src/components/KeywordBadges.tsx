@@ -19,9 +19,11 @@ export default function KeywordBadges({ keywords = [] }: KeywordBadgesProps) {
     }
   };
 
+  const displayKeywords = keywords.slice(0, 3);
+
   const handleCopyAll = async () => {
     try {
-      const keywordList = keywords.join(', ');
+      const keywordList = displayKeywords.join(', ');
       await navigator.clipboard.writeText(keywordList);
       setCopiedAll(true);
       setTimeout(() => setCopiedAll(false), 2000);
@@ -29,8 +31,6 @@ export default function KeywordBadges({ keywords = [] }: KeywordBadgesProps) {
       console.error('Falha ao copiar termos:', err);
     }
   };
-
-  const displayKeywords = keywords.slice(0, 3);
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
@@ -49,7 +49,7 @@ export default function KeywordBadges({ keywords = [] }: KeywordBadgesProps) {
           type="button"
           onClick={handleCopyAll}
           disabled={displayKeywords.length === 0}
-          className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
+          className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all active:scale-95 ${
             copiedAll
               ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
               : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-200 hover:border-gray-300'
@@ -63,14 +63,14 @@ export default function KeywordBadges({ keywords = [] }: KeywordBadgesProps) {
           ) : (
             <>
               <Copy className="w-3.5 h-3.5 text-gray-400" />
-              <span>Copiar Todas</span>
+              <span>Copiar {displayKeywords.length > 1 ? `as ${displayKeywords.length}` : ''}</span>
             </>
           )}
         </button>
       </div>
 
       {/* Grid of keywords */}
-      <div className="flex flex-wrap gap-2 mb-4">
+      <div className="flex flex-wrap items-center gap-2 mb-4">
         {displayKeywords.length === 0 && (
           <p className="text-xs text-gray-400 italic py-1">
             Nenhuma palavra-chave extraída ainda.
@@ -97,6 +97,11 @@ export default function KeywordBadges({ keywords = [] }: KeywordBadgesProps) {
             </div>
           );
         })}
+        {keywords.length > displayKeywords.length && (
+          <span className="text-[11px] text-gray-400 font-medium px-1">
+            +{keywords.length - displayKeywords.length} outras mapeadas
+          </span>
+        )}
       </div>
 
       {/* Strategic placement advice */}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Copy, Check, Pencil, Eye } from 'lucide-react';
+import { Copy, Check, Pencil, Eye, AlertTriangle, Sparkles, Lightbulb } from 'lucide-react';
 
 interface SummaryResultProps {
   summary: string;
@@ -70,10 +70,10 @@ export default function SummaryResult({
             type="button"
             onClick={handleCopy}
             disabled={!summary}
-            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all whitespace-nowrap ${
+            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all whitespace-nowrap active:scale-95 ${
               copied
                 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                : 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95 shadow-sm shadow-indigo-200'
+                : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm shadow-indigo-200'
             }`}
           >
             {copied ? (
@@ -123,18 +123,21 @@ export default function SummaryResult({
 
         <div className="mt-2.5 flex flex-col gap-1.5">
           {isLengthWarning && (
-            <p className="text-[11px] px-3 py-2 bg-rose-50 border border-rose-100 text-rose-700 rounded-lg font-medium">
-              ⚠️ Passou de 1.500 caracteres — o sistema pode cortar o excedente. Reduza o texto.
+            <p className="flex items-center gap-1.5 text-[11px] px-3 py-2 bg-rose-50 border border-rose-100 text-rose-700 rounded-lg font-medium">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+              Passou de 1.500 caracteres — o sistema pode cortar o excedente. Reduza o texto.
             </p>
           )}
           {isLengthOptimal && !isLengthWarning && (
-            <p className="text-[11px] px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg font-medium border border-emerald-100">
-              ✨ Tamanho ideal para maximizar a legibilidade e o ranqueamento.
+            <p className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg font-medium border border-emerald-100">
+              <Sparkles className="w-3.5 h-3.5 shrink-0" />
+              Tamanho ideal para maximizar a legibilidade e o ranqueamento.
             </p>
           )}
           {!isLengthOptimal && !isLengthWarning && (
-            <p className="text-[11px] px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg font-medium border border-amber-100">
-              💡 Mantenha entre 800–1.400 caracteres para melhor desempenho no ATS.
+            <p className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg font-medium border border-amber-100">
+              <Lightbulb className="w-3.5 h-3.5 shrink-0" />
+              Mantenha entre 800–1.400 caracteres para melhor desempenho no ATS.
             </p>
           )}
         </div>

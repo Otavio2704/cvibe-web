@@ -134,11 +134,14 @@ export default function CvUploader({ selectedCvId, onSelectCv }: CvUploaderProps
   const canRetryLoad = error?.kind !== 'upload_type' && error?.kind !== 'upload_size';
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+    <div className="bg-white rounded-lg border border-slate-200 p-6">
       <div className="mb-4">
-        <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+        <h2 className="flex items-center gap-2.5 text-lg font-bold text-gray-900">
+          <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-[11px] font-black flex items-center justify-center shrink-0">
+            1
+          </span>
           <FileText className="w-5 h-5 text-indigo-600" />
-          1. Escolha ou Envie seu Currículo
+          Escolha ou Envie seu Currículo
         </h2>
         <p className="text-sm text-gray-500 mt-0.5">
           O CVibe utilizará as informações do seu currículo para contextualizar e mapear sua experiência de acordo com a vaga.

@@ -86,7 +86,7 @@ export default function Checklist() {
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Checklist</h1>
+          <h1 className="font-serif-editorial text-2xl font-semibold text-slate-950 tracking-tight">Checklist</h1>
           <p className="text-sm text-slate-500 mt-0.5">
             Acompanhe cada etapa da otimização do seu perfil para o processo seletivo.
           </p>
@@ -109,13 +109,15 @@ export default function Checklist() {
       </div>
       <div className="flex items-center justify-between mb-8">
         <p className="text-[10px] text-slate-400">Progresso salvo automaticamente enquanto a aba estiver aberta.</p>
-        <button
-          onClick={handleClear}
-          className="flex items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-red-500 transition-colors"
-        >
-          <RotateCcw className="w-3 h-3" />
-          Limpar
-        </button>
+        {done > 0 && (
+          <button
+            onClick={handleClear}
+            className="flex items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-red-500 active:scale-95 transition-all"
+          >
+            <RotateCcw className="w-3 h-3" />
+            Limpar
+          </button>
+        )}
       </div>
 
       {/* ── Sections ────────────────────────────────────────────────────── */}
@@ -138,7 +140,7 @@ export default function Checklist() {
 
               {/* Items */}
               <div
-                className="card bg-white border border-slate-100 rounded-xl overflow-hidden"
+                className="card bg-white border border-slate-200 rounded-lg overflow-hidden"
               >
                 {section.items.map((item, idx) => {
                   const isChecked = !!checked[item.id];
@@ -146,7 +148,7 @@ export default function Checklist() {
                     <button
                       key={item.id}
                       onClick={() => toggle(item.id)}
-                      className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors ${
+                      className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-all active:scale-[0.995] ${
                         idx !== 0 ? 'border-t border-slate-50' : ''
                       } ${isChecked ? 'bg-emerald-50/40' : 'hover:bg-slate-50'}`}
                     >

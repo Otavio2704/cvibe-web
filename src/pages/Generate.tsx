@@ -18,6 +18,7 @@ import {
   CheckCircle,
   Save,
   RotateCcw,
+  ArrowLeft,
 } from 'lucide-react';
 
 // ─── Overlay de geração ───────────────────────────────────────────────────────
@@ -238,13 +239,13 @@ export default function Generate() {
         <div className="flex items-center gap-3 mb-6">
           <button
             onClick={() => { setGeneratedResult(null); setEditedSummary(''); setError(null); }}
-            className="text-slate-400 hover:text-slate-700 transition-colors p-1"
+            className="p-2 rounded-xl text-slate-400 hover:text-indigo-700 hover:bg-indigo-50 active:scale-95 transition-all"
             title="Voltar ao formulário"
           >
-            ‹
+            <ArrowLeft className="w-4.5 h-4.5" />
           </button>
           <div className="flex-1">
-            <h1 className="text-xl font-black text-slate-900 tracking-tight">Resumo gerado</h1>
+            <h1 className="font-serif-editorial text-xl font-semibold text-slate-950 tracking-tight">Resumo gerado</h1>
             <p className="text-xs text-slate-500">Edite, confira o score e salve o relatório.</p>
           </div>
           <ScoreRing score={liveScore} size={64} stroke={6} />
@@ -313,9 +314,10 @@ export default function Generate() {
   // ── Formulário ──
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 animate-fade-in">
-      <div className="mb-8">
-        <h1 className="text-2xl font-black text-slate-900 tracking-tight">Otimizar currículo</h1>
-        <p className="text-sm text-slate-500 mt-0.5">
+      <div className="mb-8 pb-6 border-b border-slate-200">
+        <span className="text-[11px] uppercase font-bold tracking-[0.18em] text-indigo-700 block mb-2">Otimizador</span>
+        <h1 className="font-serif-editorial text-2xl font-semibold text-slate-950 tracking-tight">Otimizar currículo</h1>
+        <p className="text-sm text-slate-500 mt-1.5">
           Informe o currículo e a vaga desejada. A IA ajusta seu resumo para aumentar a aderência aos algoritmos de triagem das plataformas de recrutamento.
         </p>
       </div>
@@ -338,10 +340,13 @@ export default function Generate() {
       <form onSubmit={handleGenerate} className="space-y-5">
         <CvUploader selectedCvId={selectedCv?.id ?? null} onSelectCv={setSelectedCv} />
 
-        <div className="card bg-white border border-slate-100 rounded-xl p-5">
-          <h2 className="flex items-center gap-2 text-[13px] font-bold text-slate-900 mb-4">
-            <Briefcase className="w-4 h-4 text-indigo-500" />
-            2 · Dados da vaga
+        <div className="card bg-white border border-slate-100 rounded-lg p-6">
+          <h2 className="flex items-center gap-2.5 text-lg font-bold text-slate-900 mb-4">
+            <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-[11px] font-black flex items-center justify-center shrink-0">
+              2
+            </span>
+            <Briefcase className="w-5 h-5 text-indigo-500" />
+            Dados da vaga
           </h2>
 
           <div className="space-y-3">
@@ -379,9 +384,18 @@ export default function Generate() {
                 className="w-full px-3 py-2.5 text-sm text-slate-800 bg-slate-50 border border-slate-200 rounded-lg focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100 transition-all resize-none placeholder:text-slate-300 leading-relaxed"
                 required
               />
-              <p className="text-[10px] text-slate-400 mt-1">
-                Quanto mais completo, mais precisa é a extração de palavras-chave.
-              </p>
+              <div className="flex items-center justify-between mt-1">
+                <p className="text-[10px] text-slate-400">
+                  Quanto mais completo, mais precisa é a extração de palavras-chave.
+                </p>
+                <span
+                  className={`text-[10px] font-bold shrink-0 ml-2 ${
+                    jobContent.trim().length >= 50 ? 'text-emerald-600' : 'text-slate-400'
+                  }`}
+                >
+                  {jobContent.trim().length}/50
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -389,7 +403,7 @@ export default function Generate() {
         <button
           type="submit"
           disabled={generating}
-          className="btn-primary w-full py-3.5 rounded-xl text-sm font-black text-white flex items-center justify-center gap-2"
+          className="w-full py-3.5 rounded-lg text-sm font-black text-white bg-slate-950 hover:bg-slate-900 flex items-center justify-center gap-2 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed transition-all"
         >
           <Sparkles className="w-4 h-4" />
           Otimizar com IA

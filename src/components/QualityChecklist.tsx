@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Zap } from 'lucide-react';
+import { Zap, Check, Minus } from 'lucide-react';
 
 const STOPWORDS = new Set([
   'a','ao','aos','as','ate','com','como','da','das','de','dela','delas','dele',
@@ -120,7 +120,9 @@ export default function QualityChecklist({ summary = '', jobContent = '' }: Prop
                 ? 'text-emerald-700 bg-emerald-50 border-emerald-100'
                 : checks.score === 3
                 ? 'text-indigo-700 bg-indigo-50 border-indigo-100'
-                : 'text-amber-700 bg-amber-50 border-amber-100'
+                : checks.score === 2
+                ? 'text-amber-700 bg-amber-50 border-amber-100'
+                : 'text-rose-700 bg-rose-50 border-rose-100'
             }`}>
               {checks.pct}%
             </span>
@@ -148,12 +150,12 @@ export default function QualityChecklist({ summary = '', jobContent = '' }: Prop
             }`}
           >
             {/* Indicador */}
-            <span className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 text-[10px] font-black ${
+            <span className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 ${
               item.ok
                 ? 'bg-emerald-500 text-white'
                 : 'bg-slate-200 text-slate-400'
             }`}>
-              {item.ok ? '✓' : '–'}
+              {item.ok ? <Check className="w-2.5 h-2.5" strokeWidth={3} /> : <Minus className="w-2.5 h-2.5" strokeWidth={3} />}
             </span>
 
             <div className="flex-1 min-w-0 flex items-center justify-between gap-2">

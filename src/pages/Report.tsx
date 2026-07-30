@@ -20,6 +20,7 @@ import {
   Trash2,
   CheckCircle2,
   Briefcase,
+  AlertTriangle,
 } from 'lucide-react';
 
 // 🔒 Sanitização contra XSS no document.write
@@ -185,9 +186,26 @@ export default function Report() {
   // ── Estados de carregamento / erro total ──
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] p-8">
-        <Loader2 className="w-10 h-10 text-indigo-500 animate-spin mb-4" />
-        <p className="text-sm text-slate-500 font-medium">Carregando relatório...</p>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8" aria-busy="true" aria-label="Carregando relatório">
+        <div className="h-4 w-32 bg-slate-100 rounded animate-pulse mb-5" />
+        <div className="flex items-center justify-between gap-4 mb-7 pb-6 border-b border-slate-100">
+          <div className="space-y-2 w-2/3">
+            <div className="h-3 w-24 bg-slate-100 rounded animate-pulse" />
+            <div className="h-6 w-full max-w-sm bg-slate-100 rounded animate-pulse" />
+            <div className="h-3 w-40 bg-slate-100 rounded animate-pulse" />
+          </div>
+          <div className="w-16 h-16 rounded-full bg-slate-100 animate-pulse shrink-0" />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-5">
+            <div className="h-48 bg-white rounded-2xl border border-slate-100 animate-pulse" />
+            <div className="h-32 bg-white rounded-2xl border border-slate-100 animate-pulse" />
+          </div>
+          <div className="space-y-5">
+            <div className="h-28 bg-white rounded-xl border border-slate-100 animate-pulse" />
+            <div className="h-40 bg-white rounded-xl border border-slate-100 animate-pulse" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -202,7 +220,7 @@ export default function Report() {
         <div className="text-center">
           <Link
             to="/dashboard"
-            className="inline-flex items-center gap-1.5 px-4 py-2 btn-primary text-white font-semibold rounded-xl text-sm"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-950 hover:bg-slate-900 text-white font-semibold rounded-lg text-sm transition-all"
           >
             <ArrowLeft className="w-4 h-4" />
             Voltar ao painel
@@ -238,7 +256,7 @@ export default function Report() {
               {formatReportDate(report.updatedAt || report.createdAt)}
             </span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 truncate" title={report.jobTitle}>
+          <h1 className="font-serif-editorial text-xl sm:text-2xl font-semibold text-slate-950 truncate" title={report.jobTitle}>
             {report.jobTitle}
           </h1>
           <p className="text-xs text-slate-500">
@@ -251,14 +269,14 @@ export default function Report() {
           <div className="flex gap-2">
             <button
               onClick={handleExportPDF}
-              className="flex items-center gap-1.5 px-3.5 py-2 border border-slate-200 hover:border-slate-300 text-slate-600 bg-white hover:bg-slate-50 text-xs font-bold rounded-xl transition-all"
+              className="flex items-center gap-1.5 px-3.5 py-2 border border-slate-200 hover:border-slate-300 text-slate-600 bg-white hover:bg-slate-50 active:scale-95 text-xs font-bold rounded-xl transition-all"
             >
               <Download className="w-3.5 h-3.5" />
               PDF
             </button>
             <button
               onClick={handleDelete}
-              className="flex items-center gap-1.5 px-3.5 py-2 border border-red-100 text-red-600 bg-red-50/50 hover:bg-red-50 text-xs font-bold rounded-xl transition-all"
+              className="flex items-center gap-1.5 px-3.5 py-2 border border-red-100 text-red-600 bg-red-50/50 hover:bg-red-50 active:scale-95 text-xs font-bold rounded-xl transition-all"
             >
               <Trash2 className="w-3.5 h-3.5" />
               Excluir
@@ -334,7 +352,7 @@ export default function Report() {
               <button
                 onClick={handleRegenerate}
                 disabled={saving || regenerating}
-                className="btn-primary w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white flex items-center justify-center gap-2 disabled:opacity-70"
+                className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-slate-950 hover:bg-slate-900 flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-70 transition-all"
               >
                 {regenerating
                   ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -345,8 +363,9 @@ export default function Report() {
             </div>
 
             {isModified && (
-              <p className="text-[10px] text-amber-600 font-semibold mt-3 text-center">
-                ⚠ Edições não salvas
+              <p className="flex items-center justify-center gap-1 text-[10px] text-amber-600 font-semibold mt-3 text-center">
+                <AlertTriangle className="w-3 h-3 shrink-0" />
+                Edições não salvas
               </p>
             )}
           </div>
