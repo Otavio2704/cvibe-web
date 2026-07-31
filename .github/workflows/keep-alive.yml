@@ -29,7 +29,7 @@ jobs:
           fi
 
           echo "Pingando .../api/session ..."
-          curl -sS -o /tmp/body.txt -w "\nStatus: %{http_code} | Tempo: %{time_total}s\n" \
+          curl -sS -D /tmp/headers.txt -o /tmp/body.txt -w "\nStatus: %{http_code} | Tempo: %{time_total}s\n" \
             --max-time 120 \
             --connect-timeout 20 \
             "${{ secrets.VITE_API_BASE_URL }}/api/session" \
@@ -39,5 +39,7 @@ jobs:
             -H "Accept: application/json, text/plain, */*" \
             || echo "Ping falhou mesmo com 120s de espera — o cold start pode estar demorando mais que isso, ou o servidor está indisponível."
 
+          echo "--- Headers da resposta ---"
+          cat /tmp/headers.txt 2>/dev/null || echo "(sem headers)"
           echo "--- Corpo da resposta ---"
           cat /tmp/body.txt 2>/dev/null || echo "(sem corpo de resposta)"
