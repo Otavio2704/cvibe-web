@@ -1,5 +1,14 @@
 name: Keep Backend Alive
 
+# Faz um ping periódico no backend hospedado no Render para evitar que ele
+# hiberne por inatividade (comportamento padrão do free tier). O Render
+# derruba a instância após ~15 min sem tráfego e o próximo request "acorda"
+# o servidor, o que pode levar até 50s — essa rotina evita que isso
+# aconteça na frente do usuário.
+#
+# Reaproveita o mesmo secret VITE_API_BASE_URL já usado no deploy.yml, então
+# nenhuma configuração extra é necessária além do que já existe no repo.
+
 on:
   schedule:
     # A cada 14 minutos. GitHub Actions não garante o minuto exato do cron
@@ -20,13 +29,13 @@ jobs:
           fi
 
           echo "Pingando .../api/session ..."
-          curl -sS -D - -o /tmp/body.txt -w "\nStatus: %{http_code} | Tempo: %{time_total}s\n" \
-            --max-time 60 \
+          curl -sS -o /tmp/body.txt -w "\nStatus: %{http_code} | Tempo: %{time_total}s\n" \
+            --max-time 120 \
+            --connect-timeout 20 \
             "${{ secrets.VITE_API_BASE_URL }}/api/session" \
             -X POST \
             -H "Content-Type: application/json" \
-            -H "Origin: https://otavio2704.github.io" \
-            || echo "Ping falhou, mas não é crítico (o servidor pode simplesmente acordar no próximo request real)."
+            || echo "Ping falhou mesmo com 120s de espera — o cold start pode estar demorando mais que isso, ou o servidor está indisponível."
 
           echo "--- Corpo da resposta ---"
-          cat /tmp/body.txt || true
+          cat /tmp/body.txt 2>/dev/null || echo "(sem corpo de resposta)"
