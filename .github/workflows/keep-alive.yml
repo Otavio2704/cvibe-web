@@ -35,6 +35,8 @@ jobs:
             "${{ secrets.VITE_API_BASE_URL }}/api/session" \
             -X POST \
             -H "Content-Type: application/json" \
+            -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" \
+            -H "Accept: application/json, text/plain, */*" \
             || echo "Ping falhou mesmo com 120s de espera — o cold start pode estar demorando mais que isso, ou o servidor está indisponível."
 
           echo "--- Corpo da resposta ---"
