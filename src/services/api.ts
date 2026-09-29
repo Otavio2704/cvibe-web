@@ -515,20 +515,24 @@ export const generate = {
         });
       }
 
-      // 404/405 = endpoint de streaming não existe no backend publicado ainda.
-      // Cai no endpoint clássico para não quebrar quem ainda não fez deploy.
+      // Qualquer falha HTTP na rota de streaming cai no endpoint clássico antes
+      // de desistir. Cobre:
+      //  - 404/405/501: o back-end publicado ainda não tem o endpoint /stream;
+      //  - 500: este back-end responde 500 genérico para rota inexistente
+      //    (NoResourceFoundException cai no handler global), então o deploy
+      //    antigo também se manifesta como 500;
+      //  - 502/503/504: proxy/Render no meio de um deploy.
+      // Sem isso, o front cairia no modo simulador durante a janela em que o
+      // front está no ar e o back ainda não foi publicado.
       if (!resposta.ok || !resposta.body) {
-        if (resposta.status === 404 || resposta.status === 405 || resposta.status === 501) {
-          const r = await generate.run(body);
-          finalizado = true;
-          handlers.onDone({
-            reportId: r.reportId,
-            summary: r.summary,
-            keywords: r.keywords,
-          });
-          return;
-        }
-        throw new Error(`Stream falhou: ${resposta.status}`);
+        const r = await generate.run(body);
+        finalizado = true;
+        handlers.onDone({
+          reportId: r.reportId,
+          summary: r.summary,
+          keywords: r.keywords,
+        });
+        return;
       }
 
       const leitor = resposta.body.getReader();
