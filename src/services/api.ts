@@ -17,6 +17,21 @@ let useMock = false;
 let onMockStateChange: ((val: boolean) => void) | null = null;
 let sessionInitPromise: Promise<any> | null = null;
 
+/** Resultado final do streaming (mesmo formato do generate.run). */
+export type GenerateStreamResult = {
+  reportId: string;
+  summary: string;
+  keywords: string[];
+};
+
+/** Callbacks do streaming: texto chegando, fim com resultado, ou erro tratado. */
+export type GenerateStreamHandlers = {
+  onSummaryDelta?: (delta: string) => void;
+  onDone: (resultado: GenerateStreamResult) => void;
+  onError: (mensagem: string) => void;
+  signal?: AbortSignal;
+};
+
 export const setMockStateListener = (callback: (val: boolean) => void) => {
   onMockStateChange = callback;
 };
@@ -421,6 +436,170 @@ export const generate = {
         jobTitle: body.jobTitle,
         jobContent: body.jobContent,
       };
+    }
+  },
+
+  /**
+   * Geração com streaming (SSE) — o texto aparece na tela conforme a IA escreve,
+   * em vez de esperar a resposta inteira.
+   *
+   * Por que fetch + ReadableStream e não EventSource: o EventSource só faz GET,
+   * e a geração é um POST com JSON. Aqui lemos o corpo da resposta e separamos os
+   * eventos (summary / done / erro) manualmente.
+   */
+  stream: async (
+    body: { cvId: string; jobTitle: string; jobContent: string; cvName?: string },
+    handlers: GenerateStreamHandlers,
+  ) => {
+    let finalizado = false;
+
+    // Modo simulador: reproduz o streaming localmente (mesmo comportamento visual)
+    const usarMock = async () => {
+      triggerMockMode();
+      const cvs = getLocalData('cvibe_mock_cvs', []);
+      const selectedCv = cvs.find((c: any) => c.id === body.cvId) || { content: 'vazio', name: 'Curriculo.pdf' };
+      const aiResult = simulateAIGeneration(selectedCv.content, body.jobTitle, body.jobContent);
+
+      let enviadas = 0;
+      for (const palavra of aiResult.summary.split(' ')) {
+        if (handlers.signal?.aborted) return;
+        handlers.onSummaryDelta?.((enviadas === 0 ? '' : ' ') + palavra);
+        enviadas += 1;
+        await new Promise((resolve) => setTimeout(resolve, 40));
+      }
+      if (handlers.signal?.aborted) return;
+
+      const mockId = 'rep-' + Math.random().toString(36).substring(2, 9);
+      const now = new Date().toISOString();
+      saveCachedReport(normalizeReport({
+        id: mockId,
+        cvId: body.cvId,
+        cvName: selectedCv.name,
+        jobTitle: body.jobTitle,
+        jobContent: body.jobContent,
+        summary: aiResult.summary,
+        keywords: aiResult.keywords,
+        createdAt: now,
+        updatedAt: now,
+        versions: [{ version: 1, summary: aiResult.summary, createdAt: now, updatedAt: now }],
+      }));
+
+      finalizado = true;
+      handlers.onDone({
+        reportId: mockId,
+        summary: aiResult.summary,
+        keywords: aiResult.keywords,
+      });
+    };
+
+    try {
+      if (sessionInitPromise) await sessionInitPromise;
+
+      let resposta = await fetch(`${API_BASE_URL}/api/generate/stream`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+        body: JSON.stringify(body),
+        signal: handlers.signal,
+      });
+
+      // Sessão expirada/inválida: renova uma vez e repete (mesmo comportamento do apiFetch)
+      if (resposta.status === 401 || resposta.status === 403) {
+        await session.init();
+        resposta = await fetch(`${API_BASE_URL}/api/generate/stream`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+          body: JSON.stringify(body),
+          signal: handlers.signal,
+        });
+      }
+
+      // 404/405 = endpoint de streaming não existe no backend publicado ainda.
+      // Cai no endpoint clássico para não quebrar quem ainda não fez deploy.
+      if (!resposta.ok || !resposta.body) {
+        if (resposta.status === 404 || resposta.status === 405 || resposta.status === 501) {
+          const r = await generate.run(body);
+          finalizado = true;
+          handlers.onDone({
+            reportId: r.reportId,
+            summary: r.summary,
+            keywords: r.keywords,
+          });
+          return;
+        }
+        throw new Error(`Stream falhou: ${resposta.status}`);
+      }
+
+      const leitor = resposta.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { value, done } = await leitor.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        // Cada evento SSE termina em linha vazia (\n\n), mas o pedaço lido pode
+        // cortar um evento ao meio — por isso acumulamos no buffer e só
+        // processamos frames completos.
+        let corte: number;
+        while ((corte = buffer.indexOf('\n\n')) !== -1) {
+          const frame = buffer.slice(0, corte);
+          buffer = buffer.slice(corte + 2);
+
+          let evento = 'message';
+          let dados = '';
+          for (const linha of frame.split('\n')) {
+            if (linha.startsWith('event:')) evento = linha.slice(6).trim();
+            else if (linha.startsWith('data:')) dados += linha.slice(5).trim();
+          }
+          if (!dados) continue;
+
+          let payload: any;
+          try {
+            payload = JSON.parse(dados);
+          } catch {
+            continue; // frame incompleto/inesperado: ignora
+          }
+
+          if (evento === 'summary') {
+            handlers.onSummaryDelta?.(payload.delta ?? '');
+          } else if (evento === 'done') {
+            finalizado = true;
+            const agora = new Date().toISOString();
+            saveCachedReport(normalizeReport({
+              id: payload.reportId,
+              reportId: payload.reportId,
+              summary: payload.summary,
+              keywords: payload.keywords,
+              cvId: body.cvId,
+              cvName: body.cvName,
+              jobTitle: body.jobTitle,
+              jobContent: body.jobContent,
+              createdAt: agora,
+              updatedAt: agora,
+              versions: [{ version: 1, summary: payload.summary, createdAt: agora, updatedAt: agora }],
+            }));
+            handlers.onDone(payload);
+          } else if (evento === 'erro') {
+            finalizado = true;
+            handlers.onError(payload.mensagem || 'Falha ao gerar a resposta.');
+          }
+        }
+      }
+
+      if (!finalizado) {
+        // Conexão encerrou sem 'done' nem 'erro' (proxy cortou, deploy no meio, etc.)
+        throw new Error('A conexão foi encerrada antes do fim da geração.');
+      }
+    } catch (err) {
+      if ((err as Error)?.name === 'AbortError') return;  // usuário cancelou/timeout local
+      try {
+        await usarMock();
+      } catch {
+        handlers.onError((err as Error)?.message || 'Falha ao gerar a resposta.');
+      }
     }
   },
 };
